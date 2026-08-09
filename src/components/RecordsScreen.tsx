@@ -4,6 +4,7 @@ import type { WorkoutRecordMetadata } from "../domain/records";
 import { formatDuration } from "../domain/session";
 import { getExercise } from "../domain/exercises";
 import {
+  deleteWorkoutRecord,
   getWorkoutVideo,
   listWorkoutRecords,
 } from "../lib/workout-record-store";
@@ -57,6 +58,17 @@ export function RecordsScreen({ onHome }: RecordsScreenProps) {
     if (destination === "home") onHome();
   };
 
+  const handleDeleted = (recordId: string) => {
+    setState((current) =>
+      current.status === "ready"
+        ? {
+            status: "ready",
+            records: current.records.filter((record) => record.id !== recordId),
+          }
+        : current,
+    );
+  };
+
   return (
     <div className="records-screen">
       <main className="records-content" aria-labelledby="records-title">
@@ -82,7 +94,7 @@ export function RecordsScreen({ onHome }: RecordsScreenProps) {
         {state.status === "ready" && state.records.length === 0 ? (
           <section className="records-status records-status--empty">
             <h2>还没有记录</h2>
-            <p>完成一组训练后会显示在这里。</p>
+            <p>训练满 10 秒后会显示在这里。</p>
             <button type="button" onClick={onHome}>
               开始训练
             </button>
@@ -92,7 +104,11 @@ export function RecordsScreen({ onHome }: RecordsScreenProps) {
         {state.status === "ready" && state.records.length > 0 ? (
           <section className="records-list" aria-label="训练记录列表">
             {state.records.map((record) => (
-              <WorkoutRecord key={record.id} record={record} />
+              <WorkoutRecord
+                key={record.id}
+                record={record}
+                onDeleted={handleDeleted}
+              />
             ))}
           </section>
         ) : null}
@@ -103,11 +119,20 @@ export function RecordsScreen({ onHome }: RecordsScreenProps) {
   );
 }
 
-function WorkoutRecord({ record }: { record: WorkoutRecordMetadata }) {
+function WorkoutRecord({
+  record,
+  onDeleted,
+}: {
+  record: WorkoutRecordMetadata;
+  onDeleted: (recordId: string) => void;
+}) {
   const exercise = getExercise(record.exerciseId);
   const completedAt = new Date(record.completedAt);
   const formattedDate = DATE_FORMATTER.format(completedAt);
   const [video, setVideo] = useState<VideoState>({ status: "loading" });
+  const [deleteStatus, setDeleteStatus] = useState<
+    "idle" | "deleting" | "error"
+  >("idle");
 
   useEffect(() => {
     let active = true;
@@ -172,6 +197,21 @@ function WorkoutRecord({ record }: { record: WorkoutRecordMetadata }) {
     link.remove();
   };
 
+  const deleteRecord = async () => {
+    const confirmed = window.confirm(
+      `删除这条${exercise.label}记录和本机视频？删除后无法恢复。`,
+    );
+    if (!confirmed) return;
+
+    setDeleteStatus("deleting");
+    try {
+      await deleteWorkoutRecord(record.id);
+      onDeleted(record.id);
+    } catch {
+      setDeleteStatus("error");
+    }
+  };
+
   return (
     <article className="record-item">
       <header className="record-item__header">
@@ -209,15 +249,37 @@ function WorkoutRecord({ record }: { record: WorkoutRecordMetadata }) {
             <dd>{formatDuration(record.durationSeconds)}</dd>
           </div>
         </dl>
-        <button
-          className="record-export"
-          type="button"
-          disabled={video.status !== "ready"}
-          onClick={exportVideo}
-        >
-          导出视频
-        </button>
+        <div className="record-actions">
+          <button
+            className="record-export"
+            type="button"
+            disabled={video.status !== "ready" || deleteStatus === "deleting"}
+            onClick={exportVideo}
+          >
+            导出视频
+          </button>
+          <button
+            className="record-delete"
+            type="button"
+            disabled={deleteStatus === "deleting"}
+            onClick={() => void deleteRecord()}
+            aria-describedby={
+              deleteStatus === "error" ? `delete-error-${record.id}` : undefined
+            }
+          >
+            {deleteStatus === "deleting" ? "正在删除" : "删除"}
+          </button>
+        </div>
       </div>
+      {deleteStatus === "error" ? (
+        <p
+          className="record-delete-error"
+          id={`delete-error-${record.id}`}
+          role="alert"
+        >
+          删除失败，请重试。
+        </p>
+      ) : null}
     </article>
   );
 }

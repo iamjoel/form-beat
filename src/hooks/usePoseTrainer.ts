@@ -9,7 +9,10 @@ import {
 import type { ExerciseId } from "../domain/exercises";
 import { getExercise } from "../domain/exercises";
 import type { AvatarId } from "../domain/records";
-import type { CompletionStats } from "../domain/session";
+import {
+  shouldSavePartialWorkout,
+  type CompletionStats,
+} from "../domain/session";
 import {
   coverVisibleBounds,
   type NormalizedBounds,
@@ -84,7 +87,9 @@ interface PoseTrainer {
   soundEnabled: boolean;
   cameraZoom: number;
   cameraZoomRange: CameraZoomRange | null;
+  finishing: boolean;
   error: string | null;
+  finish: () => Promise<boolean>;
   retry: () => void;
   togglePaused: () => void;
   toggleSound: () => void;
@@ -416,6 +421,12 @@ export function usePoseTrainer({
   const scheduleNextRef = useRef<() => void>(() => undefined);
   const resetSpeechPromptRef = useRef<() => void>(() => undefined);
   const recorderRef = useRef<SessionRecorder | null>(null);
+  const finishSessionRef = useRef<() => Promise<boolean>>(() =>
+    Promise.resolve(false),
+  );
+  const updatePausedClockRef = useRef<(paused: boolean) => void>(
+    () => undefined,
+  );
   const [retryToken, setRetryToken] = useState(0);
   const [status, setStatus] = useState<TrainerStatus>("starting");
   const [modelProgress, setModelProgress] = useState(0);
@@ -432,6 +443,7 @@ export function usePoseTrainer({
   const [cameraZoom, setCameraZoomState] = useState(1);
   const [cameraZoomRange, setCameraZoomRange] =
     useState<CameraZoomRange | null>(null);
+  const [finishing, setFinishing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const completeSession = useEffectEvent(onComplete);
   const resumeCameraAfterSpeech = useCallback(() => {
@@ -446,6 +458,8 @@ export function usePoseTrainer({
     let workerReady = false;
     let cameraReady = false;
     let sessionStartedAt = 0;
+    let activeDurationMs = 0;
+    let activeSegmentStartedAt = 0;
     let frameRequest = 0;
     let usesVideoFrameCallback = false;
     let inFlight = false;
@@ -463,6 +477,7 @@ export function usePoseTrainer({
     let lastSpeechPromptAt: number | null = null;
     let lastQualityBucket = 0;
     let lastPhase: CounterPhase = "seeking-start";
+    let finishPromise: Promise<boolean> | null = null;
     const cameraStreams = new Set<MediaStream>();
     const counter = { current: createRepCounterState() };
     const worker = new Worker(new URL("../workers/pose.worker.ts", import.meta.url), {
@@ -483,6 +498,7 @@ export function usePoseTrainer({
     zoomRequestRef.current += 1;
     setCameraZoomState(1);
     setCameraZoomRange(null);
+    setFinishing(false);
     pausedRef.current = false;
     setPaused(false);
 
@@ -510,6 +526,25 @@ export function usePoseTrainer({
       }
       if (stream instanceof MediaStream) stopMediaStream(stream);
       if (video) video.srcObject = null;
+    };
+
+    const getActiveDurationMs = (timestamp = performance.now()) =>
+      activeDurationMs +
+      (activeSegmentStartedAt > 0
+        ? Math.max(0, timestamp - activeSegmentStartedAt)
+        : 0);
+
+    updatePausedClockRef.current = (nextPaused) => {
+      if (sessionStartedAt === 0) return;
+
+      const now = performance.now();
+      if (nextPaused && activeSegmentStartedAt > 0) {
+        activeDurationMs = getActiveDurationMs(now);
+        activeSegmentStartedAt = 0;
+      } else if (!nextPaused && activeSegmentStartedAt === 0) {
+        activeSegmentStartedAt = now;
+      }
+      setElapsedSeconds(Math.floor(getActiveDurationMs(now) / 1_000));
     };
 
     const setStableFeedback = (message: string) => {
@@ -556,6 +591,7 @@ export function usePoseTrainer({
     const maybeStart = () => {
       if (!active || !cameraReady || !workerReady || sessionStartedAt !== 0) return;
       sessionStartedAt = performance.now();
+      activeSegmentStartedAt = sessionStartedAt;
       setStatus("tracking");
       setStableFeedback(exercise.readyCue);
       const video = videoRef.current;
@@ -565,6 +601,79 @@ export function usePoseTrainer({
       }
       scheduleNextRef.current();
     };
+
+    const finishSession = ({
+      completedReps,
+      timestamp,
+      reachedTarget,
+      minimumDelayMs,
+    }: {
+      completedReps: number;
+      timestamp: number;
+      reachedTarget: boolean;
+      minimumDelayMs: number;
+    }): Promise<boolean> => {
+      if (finishPromise) return finishPromise;
+
+      const completionStartedAt = performance.now();
+      finishPromise = (async () => {
+        finished = true;
+        setFinishing(true);
+        stopFrameRequest();
+        resetSpeechPrompt();
+
+        const durationMilliseconds = getActiveDurationMs(timestamp);
+        activeDurationMs = durationMilliseconds;
+        activeSegmentStartedAt = 0;
+        const durationSeconds = Math.max(
+          1,
+          Math.round(durationMilliseconds / 1_000),
+        );
+        setElapsedSeconds(durationSeconds);
+
+        const keepWorkout =
+          reachedTarget || shouldSavePartialWorkout(durationMilliseconds);
+        const recorder = recorderRef.current;
+        recorderRef.current = null;
+
+        if (!keepWorkout) {
+          recorder?.discard();
+          setFinishing(false);
+          return false;
+        }
+
+        const stats: CompletionStats = {
+          completedReps,
+          targetReps: target,
+          durationSeconds,
+          accuracy: Math.round(
+            (qualityTotal / Math.max(1, qualityFrames)) * 100,
+          ),
+        };
+        const recording = (await recorder?.stop()) ?? null;
+        const remainingDelay = Math.max(
+          0,
+          minimumDelayMs - (performance.now() - completionStartedAt),
+        );
+        if (remainingDelay > 0) {
+          await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, remainingDelay);
+          });
+        }
+        if (active) await completeSession(stats, recording);
+        return true;
+      })();
+
+      return finishPromise;
+    };
+
+    finishSessionRef.current = () =>
+      finishSession({
+        completedReps: counter.current.count,
+        timestamp: performance.now(),
+        reachedTarget: false,
+        minimumDelayMs: 0,
+      });
 
     const sendFrame = async () => {
       const video = videoRef.current;
@@ -714,38 +823,15 @@ export function usePoseTrainer({
         if (soundEnabledRef.current) playRepCue(nextCount);
 
         if (nextCount >= target && !finished) {
-          finished = true;
-          stopFrameRequest();
-          resetSpeechPrompt();
-          const durationSeconds = Math.max(
-            1,
-            Math.round((message.timestamp - sessionStartedAt) / 1_000),
-          );
           if (soundEnabledRef.current) {
             window.setTimeout(playCompletionCue, 190);
           }
-          const stats: CompletionStats = {
+          void finishSession({
             completedReps: nextCount,
-            targetReps: target,
-            durationSeconds,
-            accuracy: Math.round((qualityTotal / Math.max(1, qualityFrames)) * 100),
-          };
-          const completionStartedAt = performance.now();
-          void (async () => {
-            const recording = (await recorderRef.current?.stop()) ?? null;
-            recorderRef.current = null;
-            const remainingDelay = Math.max(
-              0,
-              520 - (performance.now() - completionStartedAt),
-            );
-            if (remainingDelay > 0) {
-              await new Promise<void>((resolve) => {
-                window.setTimeout(resolve, remainingDelay);
-              });
-            }
-            if (!active) return;
-            await completeSession(stats, recording);
-          })();
+            timestamp: message.timestamp,
+            reachedTarget: true,
+            minimumDelayMs: 520,
+          });
         }
       }
     };
@@ -931,7 +1017,7 @@ export function usePoseTrainer({
 
     const timer = window.setInterval(() => {
       if (sessionStartedAt === 0 || pausedRef.current || finished) return;
-      setElapsedSeconds(Math.floor((performance.now() - sessionStartedAt) / 1_000));
+      setElapsedSeconds(Math.floor(getActiveDurationMs() / 1_000));
     }, 1_000);
 
     return () => {
@@ -941,6 +1027,8 @@ export function usePoseTrainer({
       window.removeEventListener("resize", updateVisibleBounds);
       scheduleNextRef.current = () => undefined;
       resetSpeechPromptRef.current = () => undefined;
+      finishSessionRef.current = () => Promise.resolve(false);
+      updatePausedClockRef.current = () => undefined;
       resetSpeechPrompt();
       recorderRef.current?.discard();
       recorderRef.current = null;
@@ -962,6 +1050,7 @@ export function usePoseTrainer({
 
   const togglePaused = useCallback(() => {
     const next = !pausedRef.current;
+    updatePausedClockRef.current(next);
     pausedRef.current = next;
     resetSpeechPromptRef.current();
     if (next) {
@@ -1005,6 +1094,8 @@ export function usePoseTrainer({
     });
   }, []);
 
+  const finish = useCallback(() => finishSessionRef.current(), []);
+
   return {
     videoRef,
     canvasRef,
@@ -1022,7 +1113,9 @@ export function usePoseTrainer({
     soundEnabled,
     cameraZoom,
     cameraZoomRange,
+    finishing,
     error,
+    finish,
     retry,
     togglePaused,
     toggleSound,

@@ -67,8 +67,10 @@ export function WorkoutScreen({
   const trainer = usePoseTrainer({ exerciseId, target, avatar, onComplete });
   const isTracking = trainer.status === "tracking";
   const trackingReady = isTracking && !trainer.paused && trainer.poseVisible;
+  const messageVisible = trackingReady || trainer.finishing;
 
   const statusLabel = (() => {
+    if (trainer.finishing) return "正在结束训练";
     if (trainer.status === "error") return "无法开始";
     if (trainer.status === "requesting-camera") return "请允许使用相机";
     if (trainer.status === "loading-model") {
@@ -78,6 +80,11 @@ export function WorkoutScreen({
     if (trainer.paused) return "已暂停，不会计数";
     return trainer.feedback;
   })();
+
+  const handleExit = async () => {
+    const keptWorkout = await trainer.finish();
+    if (!keptWorkout) onExit();
+  };
 
   return (
     <main
@@ -89,8 +96,9 @@ export function WorkoutScreen({
         <button
           className="workout-stop icon-control"
           type="button"
-          onClick={onExit}
-          aria-label="结束训练并返回"
+          onClick={() => void handleExit()}
+          disabled={trainer.finishing}
+          aria-label={trainer.finishing ? "正在结束训练" : "结束训练并返回"}
         >
           <CloseIcon />
         </button>
@@ -130,7 +138,7 @@ export function WorkoutScreen({
         <div className="workout-overlay">
           <div
             className="workout-message"
-            data-visible={trackingReady ? "true" : "false"}
+            data-visible={messageVisible ? "true" : "false"}
             role="status"
             aria-live="polite"
           >
@@ -197,8 +205,12 @@ export function WorkoutScreen({
                 <button type="button" onClick={trainer.retry}>
                   重试
                 </button>
-                <button type="button" onClick={onExit}>
-                  返回
+                <button
+                  type="button"
+                  onClick={() => void handleExit()}
+                  disabled={trainer.finishing}
+                >
+                  {trainer.finishing ? "正在结束" : "返回"}
                 </button>
               </div>
             </div>
@@ -211,7 +223,7 @@ export function WorkoutScreen({
           className="workout-pause"
           type="button"
           onClick={trainer.togglePaused}
-          disabled={!isTracking}
+          disabled={!isTracking || trainer.finishing}
           aria-pressed={trainer.paused}
         >
           <PauseIcon paused={trainer.paused} />

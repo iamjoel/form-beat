@@ -25,7 +25,8 @@ export type WorkoutRecordStoreErrorCode =
   | "QUOTA_EXCEEDED"
   | "OPEN_FAILED"
   | "SAVE_FAILED"
-  | "READ_FAILED";
+  | "READ_FAILED"
+  | "DELETE_FAILED";
 
 export class WorkoutRecordStoreError extends Error {
   readonly code: WorkoutRecordStoreErrorCode;
@@ -134,6 +135,42 @@ export async function getWorkoutVideo(id: string): Promise<Blob | null> {
     return storedVideo;
   } catch (error) {
     throw toStoreError(error, "READ_FAILED", "Unable to read the workout video.");
+  } finally {
+    database.close();
+  }
+}
+
+export async function deleteWorkoutRecord(id: string): Promise<void> {
+  if (typeof id !== "string" || id.trim().length === 0) {
+    throw new WorkoutRecordStoreError(
+      "INVALID_INPUT",
+      "A workout record id is required.",
+    );
+  }
+
+  const database = await openDatabase();
+
+  try {
+    const transaction = database.transaction(
+      [METADATA_STORE, VIDEOS_STORE],
+      "readwrite",
+    );
+
+    try {
+      transaction.objectStore(METADATA_STORE).delete(id);
+      transaction.objectStore(VIDEOS_STORE).delete(id);
+    } catch (error) {
+      abortTransaction(transaction);
+      throw error;
+    }
+
+    await waitForTransaction(transaction);
+  } catch (error) {
+    throw toStoreError(
+      error,
+      "DELETE_FAILED",
+      "Unable to delete the workout record.",
+    );
   } finally {
     database.close();
   }

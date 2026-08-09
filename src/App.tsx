@@ -97,42 +97,48 @@ export function App() {
     }
   };
 
-  const handleComplete = (
+  const handleComplete = async (
     nextStats: CompletionStats,
     recording: CompletedRecording | null,
   ) => {
+    const reachedTarget = nextStats.completedReps >= nextStats.targetReps;
     const saveToken = ++saveTokenRef.current;
-    setStats(nextStats);
-    setView("complete");
+    setStats(reachedTarget ? nextStats : null);
+    if (reachedTarget) setView("complete");
 
     if (!recording) {
       setRecordingNotice("当前浏览器无法录屏");
       setRecordingSaving(false);
+      if (!reachedTarget) setView("setup");
       return;
     }
 
     setRecordingNotice("正在保存录屏…");
     setRecordingSaving(true);
-    void saveWorkoutRecord({
-      exerciseId,
-      completedReps: nextStats.completedReps,
-      targetReps: nextStats.targetReps,
-      durationSeconds: nextStats.durationSeconds,
-      avatar,
-      video: recording.blob,
-    })
-      .then(() => {
-        if (saveTokenRef.current !== saveToken) return;
+    try {
+      await saveWorkoutRecord({
+        exerciseId,
+        completedReps: nextStats.completedReps,
+        targetReps: nextStats.targetReps,
+        durationSeconds: nextStats.durationSeconds,
+        avatar,
+        video: recording.blob,
+      });
+      if (saveTokenRef.current === saveToken) {
         setRecordingNotice("录屏已存本机");
-        setRecordingSaving(false);
-        void navigator.storage?.persist?.().catch(() => undefined);
-      })
-      .catch((error: unknown) => {
-        if (saveTokenRef.current !== saveToken) return;
+      }
+      void navigator.storage?.persist?.().catch(() => undefined);
+    } catch (error: unknown) {
+      if (saveTokenRef.current === saveToken) {
         console.error("录屏保存失败", error);
         setRecordingNotice(recordingErrorMessage(error));
+      }
+    } finally {
+      if (saveTokenRef.current === saveToken) {
         setRecordingSaving(false);
-      });
+        if (!reachedTarget) setView("setup");
+      }
+    }
   };
 
   if (view === "workout") {

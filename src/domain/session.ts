@@ -7,6 +7,15 @@ export interface CompletionStats {
   accuracy?: number;
 }
 
+export const MIN_SAVED_WORKOUT_DURATION_MS = 10_000;
+
+export function shouldSavePartialWorkout(durationMilliseconds: number): boolean {
+  return (
+    Number.isFinite(durationMilliseconds) &&
+    durationMilliseconds >= MIN_SAVED_WORKOUT_DURATION_MS
+  );
+}
+
 export function formatDuration(totalSeconds: number): string {
   const safeSeconds = Math.max(0, Math.round(totalSeconds));
   const minutes = Math.floor(safeSeconds / 60);

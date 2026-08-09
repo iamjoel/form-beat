@@ -972,7 +972,14 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .record-export {
+  .record-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 0.5rem;
+  }
+
+  .record-export,
+  .record-delete {
     flex: 0 0 auto;
     min-height: 2.75rem;
     padding: 0.625rem 0.875rem;
@@ -982,6 +989,18 @@
     background: transparent;
     border: 1px solid var(--line);
     border-radius: 0.65rem;
+  }
+
+  .record-delete {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 38%, transparent);
+  }
+
+  .record-delete-error {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    text-align: right;
+    color: var(--danger);
   }
 
   .records-screen > .main-nav {
