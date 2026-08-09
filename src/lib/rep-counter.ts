@@ -24,6 +24,7 @@ export interface FormClassification {
   end: boolean;
   quality: number;
   metric: number | null;
+  angleOverlays: readonly PoseAngleOverlay[];
   feedback: string;
   baseline?: {
     hipY: number;
@@ -51,6 +52,15 @@ export interface RepCounterUpdate {
   feedback: string;
   quality: number;
   metric: number | null;
+  angleOverlays: readonly PoseAngleOverlay[];
+}
+
+export interface PoseAngleOverlay {
+  id: string;
+  startIndex: number;
+  vertexIndex: number;
+  endIndex: number;
+  degrees: number;
 }
 
 const START_HOLD_MS = 150;
@@ -91,6 +101,34 @@ interface SidePoints {
   ankle: PosePoint;
 }
 
+interface SideIndices {
+  shoulder: number;
+  elbow: number;
+  wrist: number;
+  hip: number;
+  knee: number;
+  ankle: number;
+}
+
+const SIDE_INDICES: Record<"left" | "right", SideIndices> = {
+  left: {
+    shoulder: INDEX.leftShoulder,
+    elbow: INDEX.leftElbow,
+    wrist: INDEX.leftWrist,
+    hip: INDEX.leftHip,
+    knee: INDEX.leftKnee,
+    ankle: INDEX.leftAnkle,
+  },
+  right: {
+    shoulder: INDEX.rightShoulder,
+    elbow: INDEX.rightElbow,
+    wrist: INDEX.rightWrist,
+    hip: INDEX.rightHip,
+    knee: INDEX.rightKnee,
+    ankle: INDEX.rightAnkle,
+  },
+};
+
 export function createRepCounterState(): RepCounterState {
   return {
     count: 0,
@@ -121,7 +159,12 @@ function visibleEnough(points: readonly (PosePoint | undefined)[]): {
   };
 }
 
-function selectSide(frame: PoseFrame): { normalized: SidePoints; world?: SidePoints } {
+function selectSide(frame: PoseFrame): {
+  side: "left" | "right";
+  indices: SideIndices;
+  normalized: SidePoints;
+  world?: SidePoints;
+} {
   const landmark = frame.landmarks;
   const world = frame.worldLandmarks;
 
@@ -133,10 +176,9 @@ function selectSide(frame: PoseFrame): { normalized: SidePoints; world?: SidePoi
     return average(indices.map((index) => visibility(landmark[index])));
   };
 
-  const left = sideScore("left") >= sideScore("right");
-  const indices = left
-    ? [11, 13, 15, 23, 25, 27]
-    : [12, 14, 16, 24, 26, 28];
+  const selectedSide = sideScore("left") >= sideScore("right") ? "left" : "right";
+  const selectedIndices = SIDE_INDICES[selectedSide];
+  const indices = Object.values(selectedIndices);
 
   const points = indices.map((index) => landmark[index]) as PosePoint[];
   const worldPoints = world?.length
@@ -144,6 +186,8 @@ function selectSide(frame: PoseFrame): { normalized: SidePoints; world?: SidePoi
     : undefined;
 
   return {
+    side: selectedSide,
+    indices: selectedIndices,
     normalized: {
       shoulder: points[0],
       elbow: points[1],
@@ -219,6 +263,15 @@ function classifySquat(
     end: knee <= 105 && hipDrop >= 0.1,
     quality: gate.quality,
     metric: Math.round(knee),
+    angleOverlays: [
+      {
+        id: `${side.side}-knee`,
+        startIndex: side.indices.hip,
+        vertexIndex: side.indices.knee,
+        endIndex: side.indices.ankle,
+        degrees: Math.round(knee),
+      },
+    ],
     feedback:
       knee > 105 || hipDrop < 0.1
         ? "继续下蹲，让髋部明显下降"
@@ -262,6 +315,22 @@ function classifyPushUp(frame: PoseFrame): FormClassification {
     end: formReady && elbow <= 95,
     quality: gate.quality,
     metric: Math.round(elbow),
+    angleOverlays: [
+      {
+        id: `${side.side}-elbow`,
+        startIndex: side.indices.shoulder,
+        vertexIndex: side.indices.elbow,
+        endIndex: side.indices.wrist,
+        degrees: Math.round(elbow),
+      },
+      {
+        id: `${side.side}-body-line`,
+        startIndex: side.indices.shoulder,
+        vertexIndex: side.indices.hip,
+        endIndex: side.indices.ankle,
+        degrees: Math.round(bodyLine),
+      },
+    ],
     feedback: !formReady
       ? "收紧核心，让肩、髋、脚踝保持一条直线"
       : elbow > 95
@@ -304,6 +373,22 @@ function classifyJumpingJack(frame: PoseFrame): FormClassification {
     end: balanced && armAngle >= 145 && spanRatio >= 1.65,
     quality: gate.quality,
     metric: Math.round(armAngle),
+    angleOverlays: [
+      {
+        id: "left-shoulder",
+        startIndex: INDEX.leftHip,
+        vertexIndex: INDEX.leftShoulder,
+        endIndex: INDEX.leftWrist,
+        degrees: Math.round(leftArm),
+      },
+      {
+        id: "right-shoulder",
+        startIndex: INDEX.rightHip,
+        vertexIndex: INDEX.rightShoulder,
+        endIndex: INDEX.rightWrist,
+        degrees: Math.round(rightArm),
+      },
+    ],
     feedback: !balanced
       ? "两只手一起举高"
       : armAngle < 145 || spanRatio < 1.65
@@ -355,6 +440,22 @@ function classifyLunge(frame: PoseFrame): FormClassification {
     end: strideReady && frontKnee <= 105 && backKnee <= 135,
     quality: gate.quality,
     metric: Math.round(frontKnee),
+    angleOverlays: [
+      {
+        id: "left-knee",
+        startIndex: INDEX.leftHip,
+        vertexIndex: INDEX.leftKnee,
+        endIndex: INDEX.leftAnkle,
+        degrees: Math.round(leftKneeAngle),
+      },
+      {
+        id: "right-knee",
+        startIndex: INDEX.rightHip,
+        vertexIndex: INDEX.rightKnee,
+        endIndex: INDEX.rightAnkle,
+        degrees: Math.round(rightKneeAngle),
+      },
+    ],
     feedback: !strideReady
       ? "前后脚再分开一些"
       : frontKnee > 105 || backKnee > 135
@@ -370,6 +471,7 @@ function invalidClassification(quality: number, feedback: string): FormClassific
     end: false,
     quality,
     metric: null,
+    angleOverlays: [],
     feedback,
   };
 }
@@ -533,6 +635,7 @@ function result(
     feedback,
     quality: clamp(classification.quality, 0, 1),
     metric: classification.metric,
+    angleOverlays: classification.angleOverlays,
   };
 }
 

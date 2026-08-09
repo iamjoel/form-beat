@@ -12,6 +12,12 @@ import type { AvatarId } from "../domain/records";
 import type { CompletionStats } from "../domain/session";
 import type { PosePoint } from "../lib/geometry";
 import { playCompletionCue, playRepCue } from "../lib/audio";
+import {
+  applyCameraDevice,
+  applyWidestCameraView,
+  findWiderCameraDevice,
+  type CameraCandidate,
+} from "../lib/camera";
 import type {
   PoseDelegate,
   PoseWorkerRequest,
@@ -21,6 +27,7 @@ import {
   createRepCounterState,
   updateRepCounter,
   type CounterPhase,
+  type PoseAngleOverlay,
 } from "../lib/rep-counter";
 import {
   createSessionRecorder,
@@ -119,10 +126,129 @@ function smoothLandmarks(
   });
 }
 
+function shortestAngleSweep(start: number, end: number): number {
+  let sweep = end - start;
+  while (sweep > Math.PI) sweep -= Math.PI * 2;
+  while (sweep < -Math.PI) sweep += Math.PI * 2;
+  return sweep;
+}
+
+function roundedRectanglePath(
+  context: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+): void {
+  const corner = Math.min(radius, width / 2, height / 2);
+  context.beginPath();
+  context.moveTo(x + corner, y);
+  context.lineTo(x + width - corner, y);
+  context.arcTo(x + width, y, x + width, y + corner, corner);
+  context.lineTo(x + width, y + height - corner);
+  context.arcTo(x + width, y + height, x + width - corner, y + height, corner);
+  context.lineTo(x + corner, y + height);
+  context.arcTo(x, y + height, x, y + height - corner, corner);
+  context.lineTo(x, y + corner);
+  context.arcTo(x, y, x + corner, y, corner);
+  context.closePath();
+}
+
+function drawAngleOverlay(
+  context: CanvasRenderingContext2D,
+  landmarks: readonly PosePoint[],
+  overlay: PoseAngleOverlay,
+  width: number,
+  height: number,
+): void {
+  const startPoint = landmarks[overlay.startIndex];
+  const vertexPoint = landmarks[overlay.vertexIndex];
+  const endPoint = landmarks[overlay.endIndex];
+  if (!startPoint || !vertexPoint || !endPoint) return;
+  if (
+    Math.min(
+      startPoint.visibility ?? 1,
+      vertexPoint.visibility ?? 1,
+      endPoint.visibility ?? 1,
+    ) < 0.55
+  ) {
+    return;
+  }
+
+  const vertexX = vertexPoint.x * width;
+  const vertexY = vertexPoint.y * height;
+  const startX = startPoint.x * width;
+  const startY = startPoint.y * height;
+  const endX = endPoint.x * width;
+  const endY = endPoint.y * height;
+  const startLength = Math.hypot(startX - vertexX, startY - vertexY);
+  const endLength = Math.hypot(endX - vertexX, endY - vertexY);
+  if (startLength < 1 || endLength < 1) return;
+
+  const unit = Math.min(width, height);
+  const radius = Math.min(
+    unit * 0.06,
+    Math.max(unit * 0.025, Math.min(startLength, endLength) * 0.24),
+  );
+  const startAngle = Math.atan2(startY - vertexY, startX - vertexX);
+  const endAngle = Math.atan2(endY - vertexY, endX - vertexX);
+  const sweep = shortestAngleSweep(startAngle, endAngle);
+
+  context.save();
+  context.beginPath();
+  context.arc(vertexX, vertexY, radius, startAngle, startAngle + sweep, sweep < 0);
+  context.lineCap = "round";
+  context.lineWidth = Math.max(7, unit * 0.011);
+  context.strokeStyle = "rgb(14 15 13 / 86%)";
+  context.stroke();
+  context.lineWidth = Math.max(3, unit * 0.0055);
+  context.strokeStyle = "oklch(91% 0.25 126)";
+  context.stroke();
+
+  const fontSize = Math.min(30, Math.max(17, unit * 0.032));
+  const labelAngle = startAngle + sweep / 2;
+  const labelOffset = radius + fontSize * 1.25;
+  const label = `${Math.round(overlay.degrees)}°`;
+  context.font = `700 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+  const labelWidth = context.measureText(label).width + fontSize * 0.85;
+  const labelHeight = fontSize * 1.5;
+  const margin = labelWidth / 2 + 4;
+  const labelX = Math.min(
+    width - margin,
+    Math.max(margin, vertexX + Math.cos(labelAngle) * labelOffset),
+  );
+  const labelY = Math.min(
+    height - labelHeight / 2 - 4,
+    Math.max(labelHeight / 2 + 4, vertexY + Math.sin(labelAngle) * labelOffset),
+  );
+
+  // The whole preview is mirrored. Pre-flip glyphs here so both live video and
+  // the mirrored local recording keep the number readable.
+  context.translate(labelX, labelY);
+  context.scale(-1, 1);
+  roundedRectanglePath(
+    context,
+    -labelWidth / 2,
+    -labelHeight / 2,
+    labelWidth,
+    labelHeight,
+    labelHeight / 2,
+  );
+  context.fillStyle = "rgb(14 15 13 / 88%)";
+  context.fill();
+  context.fillStyle = "oklch(96% 0.015 88)";
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(label, 0, fontSize * 0.02);
+  context.restore();
+}
+
 function drawPose(
   canvas: HTMLCanvasElement,
   video: HTMLVideoElement,
   landmarks: readonly PosePoint[],
+  angleOverlays: readonly PoseAngleOverlay[],
   avatar: AvatarId,
 ): void {
   const width = video.videoWidth;
@@ -172,6 +298,10 @@ function drawPose(
 
   if (avatar !== "none") {
     drawAvatar(context, landmarks, width, height, avatar);
+  }
+
+  for (const overlay of angleOverlays) {
+    drawAngleOverlay(context, landmarks, overlay, width, height);
   }
 }
 
@@ -290,6 +420,7 @@ export function usePoseTrainer({
     let lastPoseVisible = false;
     let lastQualityBucket = 0;
     let lastPhase: CounterPhase = "seeking-start";
+    const cameraStreams = new Set<MediaStream>();
     const counter = { current: createRepCounterState() };
     const worker = new Worker(new URL("../workers/pose.worker.ts", import.meta.url), {
       type: "module",
@@ -318,12 +449,18 @@ export function usePoseTrainer({
       frameRequest = 0;
     };
 
+    const stopMediaStream = (stream: MediaStream) => {
+      stream.getTracks().forEach((track) => track.stop());
+      cameraStreams.delete(stream);
+    };
+
     const stopCamera = () => {
       const video = videoRef.current;
       const stream = video?.srcObject;
-      if (stream instanceof MediaStream) {
-        stream.getTracks().forEach((track) => track.stop());
+      for (const cameraStream of [...cameraStreams]) {
+        stopMediaStream(cameraStream);
       }
+      if (stream instanceof MediaStream) stopMediaStream(stream);
       if (video) video.srcObject = null;
     };
 
@@ -423,9 +560,6 @@ export function usePoseTrainer({
       previousLandmarks = landmarks.length ? landmarks : null;
       previousWorldLandmarks = worldLandmarks.length ? worldLandmarks : null;
 
-      if (landmarks.length) drawPose(canvas, video, landmarks, avatar);
-      else clearPose(canvas);
-
       const update = updateRepCounter(exerciseId, counter.current, {
         landmarks,
         worldLandmarks,
@@ -433,6 +567,11 @@ export function usePoseTrainer({
         timestamp: message.timestamp,
       });
       counter.current = update.state;
+      if (landmarks.length) {
+        drawPose(canvas, video, landmarks, update.angleOverlays, avatar);
+      } else {
+        clearPose(canvas);
+      }
       qualityTotal += update.quality;
       qualityFrames += 1;
 
@@ -541,24 +680,88 @@ export function usePoseTrainer({
         throw new Error("MEDIA_DEVICES_UNAVAILABLE");
       }
       setStatus("requesting-camera");
+      const videoConstraints: MediaTrackConstraints = {
+        facingMode: "user",
+        width: { ideal: 720 },
+        height: { ideal: 1_280 },
+        frameRate: { ideal: 30, max: 30 },
+      };
+      const supportedConstraints = navigator.mediaDevices.getSupportedConstraints?.() as
+        | (MediaTrackSupportedConstraints & { resizeMode?: boolean })
+        | undefined;
+      if (supportedConstraints?.resizeMode) {
+        (
+          videoConstraints as MediaTrackConstraints & {
+            resizeMode: "none";
+          }
+        ).resizeMode = "none";
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: false,
-        video: {
-          facingMode: "user",
-          width: { ideal: 720 },
-          height: { ideal: 1_280 },
-          frameRate: { ideal: 30, max: 30 },
-        },
+        video: videoConstraints,
       });
+      cameraStreams.add(stream);
 
       if (!active) {
-        stream.getTracks().forEach((track) => track.stop());
+        stopMediaStream(stream);
         return;
       }
 
+      const [videoTrack] = stream.getVideoTracks();
+      if (videoTrack) await applyWidestCameraView(videoTrack);
+
+      if (active && videoTrack && navigator.mediaDevices.enumerateDevices) {
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices();
+          const candidates: CameraCandidate[] = devices
+            .filter((device) => device.kind === "videoinput")
+            .map((device) => {
+              const capableDevice = device as MediaDeviceInfo & {
+                getCapabilities?: () => { facingMode?: string | readonly string[] };
+              };
+              let facingModes: readonly string[] | undefined;
+              try {
+                const facingMode = capableDevice.getCapabilities?.().facingMode;
+                facingModes = Array.isArray(facingMode)
+                  ? facingMode
+                  : typeof facingMode === "string"
+                    ? [facingMode]
+                    : undefined;
+              } catch {
+                facingModes = undefined;
+              }
+              return {
+                deviceId: device.deviceId,
+                label: device.label,
+                facingModes,
+              };
+            });
+          const widerDeviceId = findWiderCameraDevice(
+            candidates,
+            videoTrack.getSettings().deviceId,
+            "user",
+          );
+
+          if (
+            active &&
+            widerDeviceId &&
+            (await applyCameraDevice(videoTrack, widerDeviceId))
+          ) {
+            if (!active) {
+              stopMediaStream(stream);
+              return;
+            }
+            await applyWidestCameraView(videoTrack);
+          }
+        } catch {
+          // Device labels and source switching vary across mobile browsers.
+          // Keep the already-working front camera when switching is unavailable.
+        }
+      }
+
       const video = videoRef.current;
-      if (!video) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (!active || !video) {
+        stopMediaStream(stream);
         return;
       }
       video.srcObject = stream;
@@ -570,6 +773,7 @@ export function usePoseTrainer({
 
     void startCamera().catch((cameraError) => {
       if (!active) return;
+      stopCamera();
       console.error(cameraError);
       setStatus("error");
       setError(cameraErrorMessage(cameraError));

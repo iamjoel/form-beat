@@ -13,6 +13,7 @@ const pose = (overrides: Partial<FormClassification>): FormClassification => ({
   end: false,
   quality: 0.92,
   metric: 120,
+  angleOverlays: [],
   feedback: "继续",
   ...overrides,
 });
@@ -99,4 +100,3 @@ describe("advanceRepCounter", () => {
     expect(state.count).toBe(0);
   });
 });
-
