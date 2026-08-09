@@ -1,4 +1,3 @@
-import type { CSSProperties } from "react";
 import type { ExerciseId } from "../domain/exercises";
 import { getExercise } from "../domain/exercises";
 import type { AvatarId } from "../domain/records";
@@ -108,15 +107,7 @@ export function WorkoutScreen({
         </button>
       </header>
 
-      <section
-        className="workout-camera"
-        aria-label="实时姿态识别画面"
-        style={
-          {
-            "--camera-preview-zoom": trainer.previewZoom,
-          } as CSSProperties
-        }
-      >
+      <section className="workout-camera" aria-label="实时姿态识别画面">
         <video
           ref={trainer.videoRef}
           className="workout-video"

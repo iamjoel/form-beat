@@ -72,19 +72,12 @@ interface PoseTrainer {
   soundEnabled: boolean;
   cameraZoom: number;
   cameraZoomRange: CameraZoomRange | null;
-  previewZoom: number;
   error: string | null;
   retry: () => void;
   togglePaused: () => void;
   toggleSound: () => void;
   setCameraZoom: (zoom: number) => void;
 }
-
-const DIGITAL_ZOOM_OUT_RANGE: CameraZoomRange = {
-  min: 0.5,
-  max: 1,
-  step: 0.1,
-};
 
 const CONNECTIONS: readonly [number, number][] = [
   [0, 11],
@@ -399,8 +392,6 @@ export function usePoseTrainer({
   const soundEnabledRef = useRef(true);
   const videoTrackRef = useRef<MediaStreamTrack | null>(null);
   const zoomRangeRef = useRef<CameraZoomRange | null>(null);
-  const zoomModeRef = useRef<"hardware" | "digital">("digital");
-  const previewZoomRef = useRef(1);
   const zoomRequestRef = useRef(0);
   const scheduleNextRef = useRef<() => void>(() => undefined);
   const recorderRef = useRef<SessionRecorder | null>(null);
@@ -420,7 +411,6 @@ export function usePoseTrainer({
   const [cameraZoom, setCameraZoomState] = useState(1);
   const [cameraZoomRange, setCameraZoomRange] =
     useState<CameraZoomRange | null>(null);
-  const [previewZoom, setPreviewZoom] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const completeSession = useEffectEvent(onComplete);
 
@@ -459,12 +449,9 @@ export function usePoseTrainer({
     setElapsedSeconds(0);
     videoTrackRef.current = null;
     zoomRangeRef.current = null;
-    zoomModeRef.current = "digital";
-    previewZoomRef.current = 1;
     zoomRequestRef.current += 1;
     setCameraZoomState(1);
     setCameraZoomRange(null);
-    setPreviewZoom(1);
     pausedRef.current = false;
     setPaused(false);
 
@@ -514,11 +501,7 @@ export function usePoseTrainer({
       const video = videoRef.current;
       const canvas = canvasRef.current;
       if (video && canvas) {
-        recorderRef.current = createSessionRecorder(
-          video,
-          canvas,
-          () => previewZoomRef.current,
-        );
+        recorderRef.current = createSessionRecorder(video, canvas);
       }
       scheduleNextRef.current();
     };
@@ -821,14 +804,9 @@ export function usePoseTrainer({
           }
         }
 
-        const range = hardwareRange ?? DIGITAL_ZOOM_OUT_RANGE;
-        const initialZoom = range.max;
-        zoomModeRef.current = hardwareRange ? "hardware" : "digital";
-        zoomRangeRef.current = range;
-        previewZoomRef.current = 1;
-        setCameraZoomRange(range);
-        setCameraZoomState(initialZoom);
-        setPreviewZoom(1);
+        zoomRangeRef.current = hardwareRange;
+        setCameraZoomRange(hardwareRange);
+        setCameraZoomState(hardwareRange?.max ?? 1);
       }
       cameraReady = true;
       if (!workerReady) setStatus("loading-model");
@@ -898,12 +876,6 @@ export function usePoseTrainer({
     const nextZoom = Math.min(range.max, Math.max(range.min, requestedZoom));
     setCameraZoomState(nextZoom);
 
-    if (zoomModeRef.current === "digital") {
-      previewZoomRef.current = nextZoom;
-      setPreviewZoom(nextZoom);
-      return;
-    }
-
     const requestId = ++zoomRequestRef.current;
     void applyCameraZoom(track, nextZoom).then((applied) => {
       if (
@@ -938,7 +910,6 @@ export function usePoseTrainer({
     soundEnabled,
     cameraZoom,
     cameraZoomRange,
-    previewZoom,
     error,
     retry,
     togglePaused,

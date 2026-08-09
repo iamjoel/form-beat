@@ -38,7 +38,6 @@ function evenDimension(value: number): number {
 export function createSessionRecorder(
   video: HTMLVideoElement,
   overlay: HTMLCanvasElement,
-  getPreviewZoom: () => number = () => 1,
 ): SessionRecorder | null {
   if (
     typeof MediaRecorder === "undefined" ||
@@ -107,9 +106,12 @@ export function createSessionRecorder(
     const currentWidth = video.videoWidth;
     const currentHeight = video.videoHeight;
     if (!currentWidth || !currentHeight) return;
-    const previewZoom = Math.min(1, Math.max(0.1, getPreviewZoom()));
-    const drawWidth = canvas.width * previewZoom;
-    const drawHeight = canvas.height * previewZoom;
+    const fitScale = Math.min(
+      canvas.width / currentWidth,
+      canvas.height / currentHeight,
+    );
+    const drawWidth = currentWidth * fitScale;
+    const drawHeight = currentHeight * fitScale;
     const offsetX = (canvas.width - drawWidth) / 2;
     const offsetY = (canvas.height - drawHeight) / 2;
 

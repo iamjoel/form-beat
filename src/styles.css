@@ -423,9 +423,7 @@
     height: 100%;
     object-fit: cover;
     object-position: center;
-    transform: scaleX(-1) scale(var(--camera-preview-zoom, 1));
-    transform-origin: center;
-    transition: transform 100ms ease-out;
+    transform: scaleX(-1);
   }
 
   .workout-skeleton {
