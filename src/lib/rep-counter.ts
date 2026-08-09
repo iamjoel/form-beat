@@ -3,9 +3,11 @@ import {
   average,
   axisAngleFromHorizontal,
   clamp,
+  FULL_NORMALIZED_BOUNDS,
   jointAngle,
   pointDistance,
   type FrameSize,
+  type NormalizedBounds,
   type PosePoint,
 } from "./geometry";
 
@@ -15,6 +17,7 @@ export interface PoseFrame {
   landmarks: readonly PosePoint[];
   worldLandmarks?: readonly PosePoint[];
   size: FrameSize;
+  visibleBounds?: NormalizedBounds;
   timestamp: number;
 }
 
@@ -53,6 +56,7 @@ export interface RepCounterUpdate {
   quality: number;
   metric: number | null;
   angleOverlays: readonly PoseAngleOverlay[];
+  requirementsMet: boolean;
 }
 
 export interface PoseAngleOverlay {
@@ -101,6 +105,8 @@ interface SidePoints {
   ankle: PosePoint;
 }
 
+type SidePointKey = keyof SidePoints;
+
 interface SideIndices {
   shoulder: number;
   elbow: number;
@@ -129,6 +135,21 @@ const SIDE_INDICES: Record<"left" | "right", SideIndices> = {
   },
 };
 
+const SQUAT_TRACKED_POINTS = [
+  "shoulder",
+  "hip",
+  "knee",
+  "ankle",
+] as const satisfies readonly SidePointKey[];
+
+const PUSH_UP_TRACKED_POINTS = [
+  "shoulder",
+  "elbow",
+  "wrist",
+  "hip",
+  "ankle",
+] as const satisfies readonly SidePointKey[];
+
 export function createRepCounterState(): RepCounterState {
   return {
     count: 0,
@@ -143,23 +164,47 @@ export function createRepCounterState(): RepCounterState {
 }
 
 function visibility(point: PosePoint | undefined): number {
-  return point?.visibility ?? 1;
+  if (!point) return 0;
+  return point.visibility ?? 1;
 }
 
-function visibleEnough(points: readonly (PosePoint | undefined)[]): {
+function visibleEnough(
+  points: readonly (PosePoint | undefined)[],
+  bounds = FULL_NORMALIZED_BOUNDS,
+): {
   valid: boolean;
   quality: number;
 } {
-  if (points.some((point) => !point)) return { valid: false, quality: 0 };
-  const scores = points.map(visibility);
-  const quality = average(scores);
+  if (points.length === 0) return { valid: false, quality: 0 };
+
+  let qualityTotal = 0;
+  let minimumVisibility = 1;
+  let insideFrame = true;
+  for (const point of points) {
+    if (!point) return { valid: false, quality: 0 };
+    const pointVisibility = visibility(point);
+    qualityTotal += pointVisibility;
+    minimumVisibility = Math.min(minimumVisibility, pointVisibility);
+    insideFrame &&=
+      Number.isFinite(point.x) &&
+      Number.isFinite(point.y) &&
+      point.x >= bounds.minX &&
+      point.x <= bounds.maxX &&
+      point.y >= bounds.minY &&
+      point.y <= bounds.maxY;
+  }
+
+  const quality = qualityTotal / points.length;
   return {
-    valid: Math.min(...scores) >= 0.55 && quality >= 0.68,
+    valid: insideFrame && minimumVisibility >= 0.55 && quality >= 0.68,
     quality,
   };
 }
 
-function selectSide(frame: PoseFrame): {
+function selectSide(
+  frame: PoseFrame,
+  trackedPoints: readonly SidePointKey[],
+): {
   side: "left" | "right";
   indices: SideIndices;
   normalized: SidePoints;
@@ -168,15 +213,24 @@ function selectSide(frame: PoseFrame): {
   const landmark = frame.landmarks;
   const world = frame.worldLandmarks;
 
-  const sideScore = (side: "left" | "right") => {
-    const indices =
-      side === "left"
-        ? [11, 13, 15, 23, 25, 27]
-        : [12, 14, 16, 24, 26, 28];
-    return average(indices.map((index) => visibility(landmark[index])));
+  const sideGate = (side: "left" | "right") => {
+    const indices = SIDE_INDICES[side];
+    return visibleEnough(
+      trackedPoints.map((point) => landmark[indices[point]]),
+      frame.visibleBounds,
+    );
   };
 
-  const selectedSide = sideScore("left") >= sideScore("right") ? "left" : "right";
+  const leftGate = sideGate("left");
+  const rightGate = sideGate("right");
+  const selectedSide =
+    leftGate.valid !== rightGate.valid
+      ? leftGate.valid
+        ? "left"
+        : "right"
+      : leftGate.quality >= rightGate.quality
+        ? "left"
+        : "right";
   const selectedIndices = SIDE_INDICES[selectedSide];
   const indices = Object.values(selectedIndices);
 
@@ -223,16 +277,19 @@ function classifySquat(
   frame: PoseFrame,
   baseline?: RepCounterState["baseline"],
 ): FormClassification {
-  const side = selectSide(frame);
-  const gate = visibleEnough([
-    side.normalized.shoulder,
-    side.normalized.hip,
-    side.normalized.knee,
-    side.normalized.ankle,
-  ]);
+  const side = selectSide(frame, SQUAT_TRACKED_POINTS);
+  const gate = visibleEnough(
+    [
+      side.normalized.shoulder,
+      side.normalized.hip,
+      side.normalized.knee,
+      side.normalized.ankle,
+    ],
+    frame.visibleBounds,
+  );
 
   if (!gate.valid) {
-    return invalidClassification(gate.quality, "退后一点，让肩、髋、膝和脚踝都入镜");
+    return invalidClassification(gate.quality, "让肩、髋、膝和脚踝进入画面");
   }
 
   const knee = angle(
@@ -281,11 +338,23 @@ function classifySquat(
 }
 
 function classifyPushUp(frame: PoseFrame): FormClassification {
-  const side = selectSide(frame);
-  const gate = visibleEnough(Object.values(side.normalized));
+  const side = selectSide(frame, PUSH_UP_TRACKED_POINTS);
+  const gate = visibleEnough(
+    [
+      side.normalized.shoulder,
+      side.normalized.elbow,
+      side.normalized.wrist,
+      side.normalized.hip,
+      side.normalized.ankle,
+    ],
+    frame.visibleBounds,
+  );
 
   if (!gate.valid) {
-    return invalidClassification(gate.quality, "从侧面拍摄，让手腕到脚踝完整入镜");
+    return invalidClassification(
+      gate.quality,
+      "让肩、肘、手腕、髋和脚踝进入画面",
+    );
   }
 
   const elbow = angle(
@@ -351,10 +420,13 @@ function classifyJumpingJack(frame: PoseFrame): FormClassification {
     INDEX.leftAnkle,
     INDEX.rightAnkle,
   ].map((index) => landmark[index]);
-  const gate = visibleEnough(required);
+  const gate = visibleEnough(required, frame.visibleBounds);
 
   if (!gate.valid) {
-    return invalidClassification(gate.quality, "退后一点，给手臂和双脚留出张开的空间");
+    return invalidClassification(
+      gate.quality,
+      "让双肩、手腕、髋和脚踝进入画面",
+    );
   }
 
   const [leftShoulder, rightShoulder, leftWrist, rightWrist, leftHip, rightHip, leftAnkle, rightAnkle] =
@@ -402,10 +474,10 @@ function classifyLunge(frame: PoseFrame): FormClassification {
   const world = frame.worldLandmarks;
   const requiredIndices = [23, 24, 25, 26, 27, 28];
   const required = requiredIndices.map((index) => landmark[index]);
-  const gate = visibleEnough(required);
+  const gate = visibleEnough(required, frame.visibleBounds);
 
   if (!gate.valid) {
-    return invalidClassification(gate.quality, "侧身退后，让髋部和前后两只脚完整入镜");
+    return invalidClassification(gate.quality, "让髋、双膝和双脚踝进入画面");
   }
 
   const [leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle] =
@@ -478,7 +550,7 @@ function invalidClassification(quality: number, feedback: string): FormClassific
 
 export function classifyPose(exerciseId: ExerciseId, frame: PoseFrame): FormClassification {
   if (frame.landmarks.length < 29) {
-    return invalidClassification(0, "全身进入画面后，我会自动开始识别");
+    return invalidClassification(0, "关键关节进入画面后自动开始识别");
   }
 
   switch (exerciseId) {
@@ -636,6 +708,7 @@ function result(
     quality: clamp(classification.quality, 0, 1),
     metric: classification.metric,
     angleOverlays: classification.angleOverlays,
+    requirementsMet: classification.valid,
   };
 }
 

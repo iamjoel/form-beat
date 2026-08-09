@@ -66,6 +66,7 @@ export function WorkoutScreen({
   const exercise = getExercise(exerciseId);
   const trainer = usePoseTrainer({ exerciseId, target, avatar, onComplete });
   const isTracking = trainer.status === "tracking";
+  const trackingReady = isTracking && !trainer.paused && trainer.poseVisible;
 
   const statusLabel = (() => {
     if (trainer.status === "error") return "无法开始";
@@ -107,7 +108,11 @@ export function WorkoutScreen({
         </button>
       </header>
 
-      <section className="workout-camera" aria-label="实时姿态识别画面">
+      <section
+        className="workout-camera"
+        data-tracking-ready={trackingReady ? "true" : "false"}
+        aria-label="实时姿态识别画面"
+      >
         <video
           ref={trainer.videoRef}
           className="workout-video"
@@ -125,7 +130,7 @@ export function WorkoutScreen({
         <div className="workout-overlay">
           <div
             className="workout-message"
-            data-visible={trainer.poseVisible ? "true" : "false"}
+            data-visible={trackingReady ? "true" : "false"}
             role="status"
             aria-live="polite"
           >

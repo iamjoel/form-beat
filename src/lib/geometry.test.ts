@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { jointAngle } from "./geometry";
+import { coverVisibleBounds, jointAngle } from "./geometry";
 
 describe("jointAngle", () => {
   it("calculates a right angle", () => {
@@ -48,5 +48,30 @@ describe("jointAngle", () => {
     );
 
     expect(mirrored).toBeCloseTo(original);
+  });
+});
+
+describe("coverVisibleBounds", () => {
+  it("reports the horizontally cropped source area for a taller viewport", () => {
+    expect(
+      coverVisibleBounds(
+        { width: 720, height: 1_280 },
+        { width: 390, height: 844 },
+      ),
+    ).toEqual({
+      minX: expect.closeTo(0.089, 2),
+      maxX: expect.closeTo(0.911, 2),
+      minY: 0,
+      maxY: 1,
+    });
+  });
+
+  it("keeps the whole source visible when aspect ratios match", () => {
+    expect(
+      coverVisibleBounds(
+        { width: 720, height: 1_280 },
+        { width: 360, height: 640 },
+      ),
+    ).toEqual({ minX: 0, maxX: 1, minY: 0, maxY: 1 });
   });
 });

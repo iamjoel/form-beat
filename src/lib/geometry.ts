@@ -10,6 +10,20 @@ export interface FrameSize {
   height: number;
 }
 
+export interface NormalizedBounds {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+export const FULL_NORMALIZED_BOUNDS: NormalizedBounds = {
+  minX: 0,
+  maxX: 1,
+  minY: 0,
+  maxY: 1,
+};
+
 function vector(
   from: PosePoint,
   to: PosePoint,
@@ -71,3 +85,32 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+export function coverVisibleBounds(
+  source: FrameSize,
+  viewport: FrameSize,
+): NormalizedBounds {
+  if (
+    source.width <= 0 ||
+    source.height <= 0 ||
+    viewport.width <= 0 ||
+    viewport.height <= 0
+  ) {
+    return FULL_NORMALIZED_BOUNDS;
+  }
+
+  const scale = Math.max(
+    viewport.width / source.width,
+    viewport.height / source.height,
+  );
+  const visibleWidth = clamp(viewport.width / (source.width * scale), 0, 1);
+  const visibleHeight = clamp(viewport.height / (source.height * scale), 0, 1);
+  const horizontalCrop = (1 - visibleWidth) / 2;
+  const verticalCrop = (1 - visibleHeight) / 2;
+
+  return {
+    minX: horizontalCrop,
+    maxX: 1 - horizontalCrop,
+    minY: verticalCrop,
+    maxY: 1 - verticalCrop,
+  };
+}

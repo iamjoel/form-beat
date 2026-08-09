@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { PosePoint } from "./geometry";
-import { classifyPose, type PoseFrame } from "./rep-counter";
+import {
+  classifyPose,
+  createRepCounterState,
+  updateRepCounter,
+  type PoseFrame,
+} from "./rep-counter";
 
 function landmarks(): PosePoint[] {
   return Array.from({ length: 33 }, () => ({
@@ -42,19 +47,39 @@ describe("pose angle overlays", () => {
 
   it("marks the elbow and body line used to classify a push-up", () => {
     const points = landmarks();
+    points[0] = { x: -0.2, y: -0.2, visibility: 0.1 };
     points[11] = { x: 0.2, y: 0.5, visibility: 0.99 };
     points[13] = { x: 0.4, y: 0.5, visibility: 0.99 };
     points[15] = { x: 0.4, y: 0.7, visibility: 0.99 };
     points[23] = { x: 0.6, y: 0.5, visibility: 0.99 };
-    points[25] = { x: 0.75, y: 0.5, visibility: 0.99 };
+    points[25] = { x: 0.75, y: 0.5, visibility: 0.1 };
     points[27] = { x: 0.9, y: 0.5, visibility: 0.99 };
+    for (const index of [12, 14, 16, 24, 28]) {
+      points[index] = { ...points[index], visibility: 0.1 };
+    }
 
     const result = classifyPose("push-up", frame(points));
 
+    expect(result.valid).toBe(true);
     expect(result.angleOverlays.map(({ id, degrees }) => ({ id, degrees }))).toEqual([
       { id: "left-elbow", degrees: 90 },
       { id: "left-body-line", degrees: 180 },
     ]);
+
+    const update = updateRepCounter(
+      "push-up",
+      createRepCounterState(),
+      frame(points),
+    );
+    expect(update.requirementsMet).toBe(true);
+
+    points[15] = { ...points[15], x: 1.1 };
+    const missingKeyJoint = updateRepCounter(
+      "push-up",
+      createRepCounterState(),
+      frame(points),
+    );
+    expect(missingKeyJoint.requirementsMet).toBe(false);
   });
 
   it("marks both shoulder angles for jumping jacks", () => {

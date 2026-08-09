@@ -415,6 +415,21 @@
     background: var(--camera);
   }
 
+  .workout-camera::after {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    box-shadow: inset 0 0 0 3px var(--accent);
+    content: "";
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 140ms ease-out;
+  }
+
+  .workout-camera[data-tracking-ready="true"]::after {
+    opacity: 1;
+  }
+
   .workout-video,
   .workout-skeleton {
     position: absolute;

@@ -10,7 +10,11 @@ import type { ExerciseId } from "../domain/exercises";
 import { getExercise } from "../domain/exercises";
 import type { AvatarId } from "../domain/records";
 import type { CompletionStats } from "../domain/session";
-import type { PosePoint } from "../lib/geometry";
+import {
+  coverVisibleBounds,
+  type NormalizedBounds,
+  type PosePoint,
+} from "../lib/geometry";
 import { playCompletionCue, playRepCue } from "../lib/audio";
 import {
   applyCameraDevice,
@@ -78,6 +82,8 @@ interface PoseTrainer {
   toggleSound: () => void;
   setCameraZoom: (zoom: number) => void;
 }
+
+const TRACKING_READY_HOLD_MS = 120;
 
 const CONNECTIONS: readonly [number, number][] = [
   [0, 11],
@@ -424,6 +430,7 @@ export function usePoseTrainer({
     let inFlight = false;
     let finished = false;
     let lastTimestamp = 0;
+    let visibleBounds: NormalizedBounds | undefined;
     let previousLandmarks: PosePoint[] | null = null;
     let previousWorldLandmarks: PosePoint[] | null = null;
     let qualityTotal = 0;
@@ -492,6 +499,27 @@ export function usePoseTrainer({
       lastPoseVisible = visible;
       setPoseVisible(visible);
     };
+
+    const updateVisibleBounds = () => {
+      const video = videoRef.current;
+      if (
+        !video ||
+        video.videoWidth <= 0 ||
+        video.videoHeight <= 0 ||
+        video.clientWidth <= 0 ||
+        video.clientHeight <= 0
+      ) {
+        visibleBounds = undefined;
+        return;
+      }
+
+      visibleBounds = coverVisibleBounds(
+        { width: video.videoWidth, height: video.videoHeight },
+        { width: video.clientWidth, height: video.clientHeight },
+      );
+    };
+
+    window.addEventListener("resize", updateVisibleBounds);
 
     const maybeStart = () => {
       if (!active || !cameraReady || !workerReady || sessionStartedAt !== 0) return;
@@ -581,6 +609,7 @@ export function usePoseTrainer({
         landmarks,
         worldLandmarks,
         size: { width: video.videoWidth, height: video.videoHeight },
+        visibleBounds,
         timestamp: message.timestamp,
       });
       counter.current = update.state;
@@ -592,7 +621,14 @@ export function usePoseTrainer({
       qualityTotal += update.quality;
       qualityFrames += 1;
 
-      const visible = landmarks.length > 0 && update.quality >= 0.5;
+      const requirementSince = update.requirementsMet
+        ? update.state.validSince
+        : update.state.invalidSince;
+      const requirementHeldFor =
+        message.timestamp - (requirementSince ?? message.timestamp);
+      const visible = update.requirementsMet
+        ? lastPoseVisible || requirementHeldFor >= TRACKING_READY_HOLD_MS
+        : lastPoseVisible && requirementHeldFor < TRACKING_READY_HOLD_MS;
       setStablePoseVisible(visible);
       setStableFeedback(landmarks.length ? update.feedback : exercise.readyCue);
       if (update.state.phase !== lastPhase) {
@@ -785,6 +821,7 @@ export function usePoseTrainer({
       }
       video.srcObject = stream;
       await video.play();
+      updateVisibleBounds();
       if (videoTrack) {
         videoTrackRef.current = videoTrack;
         let hardwareRange: CameraZoomRange | null = null;
@@ -830,6 +867,7 @@ export function usePoseTrainer({
       active = false;
       stopFrameRequest();
       window.clearInterval(timer);
+      window.removeEventListener("resize", updateVisibleBounds);
       scheduleNextRef.current = () => undefined;
       recorderRef.current?.discard();
       recorderRef.current = null;
