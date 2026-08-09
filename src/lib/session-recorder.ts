@@ -38,6 +38,7 @@ function evenDimension(value: number): number {
 export function createSessionRecorder(
   video: HTMLVideoElement,
   overlay: HTMLCanvasElement,
+  getPreviewZoom: () => number = () => 1,
 ): SessionRecorder | null {
   if (
     typeof MediaRecorder === "undefined" ||
@@ -106,20 +107,40 @@ export function createSessionRecorder(
     const currentWidth = video.videoWidth;
     const currentHeight = video.videoHeight;
     if (!currentWidth || !currentHeight) return;
-    const fitScale = Math.min(canvas.width / currentWidth, canvas.height / currentHeight);
-    const drawWidth = currentWidth * fitScale;
-    const drawHeight = currentHeight * fitScale;
-    const offsetX = (canvas.width - drawWidth) / 2;
-    const offsetY = (canvas.height - drawHeight) / 2;
+    const previewZoom = Math.max(1, getPreviewZoom());
+    const cropWidth = currentWidth / previewZoom;
+    const cropHeight = currentHeight / previewZoom;
+    const cropX = (currentWidth - cropWidth) / 2;
+    const cropY = (currentHeight - cropHeight) / 2;
 
     context.fillStyle = "#0e0f0d";
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.save();
     context.translate(canvas.width, 0);
     context.scale(-1, 1);
-    context.drawImage(video, offsetX, offsetY, drawWidth, drawHeight);
+    context.drawImage(
+      video,
+      cropX,
+      cropY,
+      cropWidth,
+      cropHeight,
+      0,
+      0,
+      canvas.width,
+      canvas.height,
+    );
     if (overlay.width > 0 && overlay.height > 0) {
-      context.drawImage(overlay, offsetX, offsetY, drawWidth, drawHeight);
+      context.drawImage(
+        overlay,
+        cropX,
+        cropY,
+        cropWidth,
+        cropHeight,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+      );
     }
     context.restore();
   };

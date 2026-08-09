@@ -423,7 +423,9 @@
     height: 100%;
     object-fit: cover;
     object-position: center;
-    transform: scaleX(-1);
+    transform: scaleX(-1) scale(var(--camera-preview-zoom, 1));
+    transform-origin: center;
+    transition: transform 100ms ease-out;
   }
 
   .workout-skeleton {
@@ -557,6 +559,53 @@
     margin-left: 0.5rem;
     font-size: 1rem;
     font-weight: 650;
+  }
+
+  .workout-zoom {
+    position: absolute;
+    top: 50%;
+    right: max(0.75rem, env(safe-area-inset-right));
+    display: grid;
+    grid-template-rows: 1.25rem 7.5rem 1.25rem 1.5rem;
+    gap: 0.15rem;
+    width: 3.25rem;
+    min-height: 12.25rem;
+    padding: 0.5rem 0.35rem;
+    color: var(--camera-text);
+    background: rgb(14 15 13 / 76%);
+    border: 1px solid rgb(247 247 242 / 24%);
+    border-radius: 999px;
+    transform: translateY(-50%);
+    place-items: center;
+    pointer-events: auto;
+  }
+
+  .workout-zoom input {
+    width: 2rem;
+    height: 7.5rem;
+    margin: 0;
+    accent-color: var(--accent);
+    cursor: ns-resize;
+    direction: rtl;
+    touch-action: none;
+    writing-mode: vertical-lr;
+  }
+
+  .workout-zoom input:disabled {
+    cursor: not-allowed;
+  }
+
+  .zoom-mark {
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .workout-zoom output {
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    line-height: 1;
   }
 
   .workout-controls {
@@ -980,6 +1029,16 @@
       justify-content: flex-end;
     }
 
+    .workout-zoom {
+      top: calc(50% + 0.75rem);
+      grid-template-rows: 1rem 5.25rem 1rem 1.25rem;
+      min-height: 9.75rem;
+    }
+
+    .workout-zoom input {
+      height: 5.25rem;
+    }
+
     .workout-loading,
     .workout-error {
       padding-top: 4rem;
@@ -1011,7 +1070,8 @@
     }
 
     .workout-message,
-    .workout-pause {
+    .workout-pause,
+    .workout-zoom {
       border: 2px solid var(--camera-text);
     }
   }

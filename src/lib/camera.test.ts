@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   applyCameraDevice,
+  applyCameraZoom,
   applyWidestCameraView,
   findWiderCameraDevice,
+  getCameraZoomRange,
   minimumCameraZoom,
 } from "./camera";
 
@@ -101,6 +103,68 @@ describe("minimumCameraZoom", () => {
         zoom: { min: 3, max: 1 },
       } as MediaTrackCapabilities),
     ).toBeNull();
+  });
+});
+
+describe("getCameraZoomRange", () => {
+  it("returns the adjustable hardware zoom range", () => {
+    expect(
+      getCameraZoomRange({
+        zoom: { min: 0.5, max: 4, step: 0.1 },
+      } as MediaTrackCapabilities),
+    ).toEqual({ min: 0.5, max: 4, step: 0.1 });
+  });
+
+  it("uses a safe fallback step when the browser omits one", () => {
+    expect(
+      getCameraZoomRange({
+        zoom: { min: 1, max: 3 },
+      } as MediaTrackCapabilities),
+    ).toEqual({ min: 1, max: 3, step: 0.02 });
+  });
+
+  it("ignores fixed and malformed ranges", () => {
+    expect(
+      getCameraZoomRange({
+        zoom: { min: 1, max: 1, step: 0.1 },
+      } as MediaTrackCapabilities),
+    ).toBeNull();
+  });
+});
+
+describe("applyCameraZoom", () => {
+  it("replaces an existing zoom constraint and keeps unrelated ones", async () => {
+    const applyConstraints = vi.fn().mockResolvedValue(undefined);
+    const track = {
+      getCapabilities: () => ({ zoom: { min: 0.5, max: 3, step: 0.1 } }),
+      getSettings: () => ({ zoom: 0.5 }),
+      getConstraints: () => ({
+        facingMode: "user",
+        advanced: [{ zoom: 0.5 }, { torch: false }],
+      }),
+      applyConstraints,
+    } as unknown as MediaStreamTrack;
+
+    await expect(applyCameraZoom(track, 1.7)).resolves.toBe(true);
+    expect(applyConstraints).toHaveBeenCalledWith({
+      facingMode: "user",
+      advanced: [{ torch: false }, { zoom: 1.7 }],
+    });
+  });
+
+  it("clamps requested zoom to the supported range", async () => {
+    const applyConstraints = vi.fn().mockResolvedValue(undefined);
+    const track = {
+      getCapabilities: () => ({ zoom: { min: 1, max: 2, step: 0.1 } }),
+      getSettings: () => ({ zoom: 1 }),
+      getConstraints: () => ({}),
+      applyConstraints,
+    } as unknown as MediaStreamTrack;
+
+    await expect(applyCameraZoom(track, 5)).resolves.toBe(true);
+    expect(applyConstraints).toHaveBeenCalledWith({
+      advanced: [{ zoom: 2 }],
+    });
   });
 });
 

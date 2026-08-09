@@ -14,9 +14,12 @@ import type { PosePoint } from "../lib/geometry";
 import { playCompletionCue, playRepCue } from "../lib/audio";
 import {
   applyCameraDevice,
+  applyCameraZoom,
   applyWidestCameraView,
   findWiderCameraDevice,
+  getCameraZoomRange,
   type CameraCandidate,
+  type CameraZoomRange,
 } from "../lib/camera";
 import type {
   PoseDelegate,
@@ -67,11 +70,17 @@ interface PoseTrainer {
   elapsedSeconds: number;
   paused: boolean;
   soundEnabled: boolean;
+  cameraZoom: number;
+  cameraZoomRange: CameraZoomRange | null;
+  previewZoom: number;
   error: string | null;
   retry: () => void;
   togglePaused: () => void;
   toggleSound: () => void;
+  setCameraZoom: (zoom: number) => void;
 }
+
+const DIGITAL_ZOOM_RANGE: CameraZoomRange = { min: 1, max: 3, step: 0.1 };
 
 const CONNECTIONS: readonly [number, number][] = [
   [0, 11],
@@ -384,6 +393,11 @@ export function usePoseTrainer({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pausedRef = useRef(false);
   const soundEnabledRef = useRef(true);
+  const videoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const zoomRangeRef = useRef<CameraZoomRange | null>(null);
+  const zoomModeRef = useRef<"hardware" | "digital">("digital");
+  const previewZoomRef = useRef(1);
+  const zoomRequestRef = useRef(0);
   const scheduleNextRef = useRef<() => void>(() => undefined);
   const recorderRef = useRef<SessionRecorder | null>(null);
   const [retryToken, setRetryToken] = useState(0);
@@ -399,6 +413,10 @@ export function usePoseTrainer({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [paused, setPaused] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [cameraZoom, setCameraZoomState] = useState(1);
+  const [cameraZoomRange, setCameraZoomRange] =
+    useState<CameraZoomRange | null>(null);
+  const [previewZoom, setPreviewZoom] = useState(1);
   const [error, setError] = useState<string | null>(null);
   const completeSession = useEffectEvent(onComplete);
 
@@ -435,6 +453,14 @@ export function usePoseTrainer({
     setPoseVisible(false);
     setQuality(0);
     setElapsedSeconds(0);
+    videoTrackRef.current = null;
+    zoomRangeRef.current = null;
+    zoomModeRef.current = "digital";
+    previewZoomRef.current = 1;
+    zoomRequestRef.current += 1;
+    setCameraZoomState(1);
+    setCameraZoomRange(null);
+    setPreviewZoom(1);
     pausedRef.current = false;
     setPaused(false);
 
@@ -484,7 +510,11 @@ export function usePoseTrainer({
       const video = videoRef.current;
       const canvas = canvasRef.current;
       if (video && canvas) {
-        recorderRef.current = createSessionRecorder(video, canvas);
+        recorderRef.current = createSessionRecorder(
+          video,
+          canvas,
+          () => previewZoomRef.current,
+        );
       }
       scheduleNextRef.current();
     };
@@ -708,7 +738,9 @@ export function usePoseTrainer({
       }
 
       const [videoTrack] = stream.getVideoTracks();
-      if (videoTrack) await applyWidestCameraView(videoTrack);
+      let hardwareZoomReady = videoTrack
+        ? await applyWidestCameraView(videoTrack)
+        : false;
 
       if (active && videoTrack && navigator.mediaDevices.enumerateDevices) {
         try {
@@ -751,7 +783,7 @@ export function usePoseTrainer({
               stopMediaStream(stream);
               return;
             }
-            await applyWidestCameraView(videoTrack);
+            hardwareZoomReady = await applyWidestCameraView(videoTrack);
           }
         } catch {
           // Device labels and source switching vary across mobile browsers.
@@ -766,6 +798,37 @@ export function usePoseTrainer({
       }
       video.srcObject = stream;
       await video.play();
+      if (videoTrack) {
+        videoTrackRef.current = videoTrack;
+        let hardwareRange: CameraZoomRange | null = null;
+        if (hardwareZoomReady && typeof videoTrack.getCapabilities === "function") {
+          try {
+            hardwareRange = getCameraZoomRange(videoTrack.getCapabilities());
+          } catch {
+            hardwareRange = null;
+          }
+        }
+
+        const range = hardwareRange ?? DIGITAL_ZOOM_RANGE;
+        const settingsZoom = (
+          videoTrack.getSettings() as MediaTrackSettings & { zoom?: number }
+        ).zoom;
+        const initialZoom = hardwareRange
+          ? Math.min(
+              range.max,
+              Math.max(
+                range.min,
+                typeof settingsZoom === "number" ? settingsZoom : range.min,
+              ),
+            )
+          : 1;
+        zoomModeRef.current = hardwareRange ? "hardware" : "digital";
+        zoomRangeRef.current = range;
+        previewZoomRef.current = 1;
+        setCameraZoomRange(range);
+        setCameraZoomState(initialZoom);
+        setPreviewZoom(1);
+      }
       cameraReady = true;
       if (!workerReady) setStatus("loading-model");
       maybeStart();
@@ -791,6 +854,9 @@ export function usePoseTrainer({
       scheduleNextRef.current = () => undefined;
       recorderRef.current?.discard();
       recorderRef.current = null;
+      videoTrackRef.current = null;
+      zoomRangeRef.current = null;
+      zoomRequestRef.current += 1;
       stopCamera();
       clearPose(canvasRef.current);
       const closeMessage: PoseWorkerRequest = { type: "CLOSE" };
@@ -823,6 +889,37 @@ export function usePoseTrainer({
     });
   }, []);
 
+  const setCameraZoom = useCallback((requestedZoom: number) => {
+    const range = zoomRangeRef.current;
+    const track = videoTrackRef.current;
+    if (!range || !track || !Number.isFinite(requestedZoom)) return;
+
+    const nextZoom = Math.min(range.max, Math.max(range.min, requestedZoom));
+    setCameraZoomState(nextZoom);
+
+    if (zoomModeRef.current === "digital") {
+      previewZoomRef.current = nextZoom;
+      setPreviewZoom(nextZoom);
+      return;
+    }
+
+    const requestId = ++zoomRequestRef.current;
+    void applyCameraZoom(track, nextZoom).then((applied) => {
+      if (
+        requestId !== zoomRequestRef.current ||
+        track !== videoTrackRef.current ||
+        applied
+      ) {
+        return;
+      }
+
+      const actualZoom = (
+        track.getSettings() as MediaTrackSettings & { zoom?: number }
+      ).zoom;
+      if (typeof actualZoom === "number") setCameraZoomState(actualZoom);
+    });
+  }, []);
+
   return {
     videoRef,
     canvasRef,
@@ -838,9 +935,13 @@ export function usePoseTrainer({
     elapsedSeconds,
     paused,
     soundEnabled,
+    cameraZoom,
+    cameraZoomRange,
+    previewZoom,
     error,
     retry,
     togglePaused,
     toggleSound,
+    setCameraZoom,
   };
 }

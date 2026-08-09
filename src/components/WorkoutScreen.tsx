@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import type { ExerciseId } from "../domain/exercises";
 import { getExercise } from "../domain/exercises";
 import type { AvatarId } from "../domain/records";
@@ -52,6 +53,10 @@ function PauseIcon({ paused }: { paused: boolean }) {
   );
 }
 
+function formatZoom(value: number): string {
+  return `${Number(value.toFixed(1))}×`;
+}
+
 export function WorkoutScreen({
   exerciseId,
   target,
@@ -103,7 +108,15 @@ export function WorkoutScreen({
         </button>
       </header>
 
-      <section className="workout-camera" aria-label="实时姿态识别画面">
+      <section
+        className="workout-camera"
+        aria-label="实时姿态识别画面"
+        style={
+          {
+            "--camera-preview-zoom": trainer.previewZoom,
+          } as CSSProperties
+        }
+      >
         <video
           ref={trainer.videoRef}
           className="workout-video"
@@ -138,6 +151,33 @@ export function WorkoutScreen({
             <strong>{trainer.count}</strong>
             <span>/ {target}</span>
           </div>
+
+          {trainer.cameraZoomRange ? (
+            <label className="workout-zoom">
+              <span className="sr-only">摄像头变焦</span>
+              <span className="zoom-mark" aria-hidden="true">
+                +
+              </span>
+              <input
+                type="range"
+                min={trainer.cameraZoomRange.min}
+                max={trainer.cameraZoomRange.max}
+                step={trainer.cameraZoomRange.step}
+                value={trainer.cameraZoom}
+                onChange={(event) =>
+                  trainer.setCameraZoom(event.currentTarget.valueAsNumber)
+                }
+                disabled={!isTracking}
+                aria-label="摄像头变焦"
+                aria-orientation="vertical"
+                aria-valuetext={formatZoom(trainer.cameraZoom)}
+              />
+              <span className="zoom-mark" aria-hidden="true">
+                −
+              </span>
+              <output aria-hidden="true">{formatZoom(trainer.cameraZoom)}</output>
+            </label>
+          ) : null}
 
           {trainer.status !== "tracking" && trainer.status !== "error" ? (
             <div className="workout-loading" role="status">
