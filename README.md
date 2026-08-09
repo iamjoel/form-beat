@@ -58,6 +58,13 @@ pnpm preview
 
 MediaPipe 与模型使用 Apache-2.0 许可；参见 [BlazePose GHUM 3D 模型卡](https://storage.googleapis.com/mediapipe-assets/Model%20Card%20BlazePose%20GHUM%203D.pdf)。
 
+## 许可证
+
+除另有说明外，本项目的原创源代码采用 [MIT License](LICENSE) 授权。
+MediaPipe SDK、随应用分发的 WASM 运行时、Pose Landmarker 模型以及引用的
+Google Developers 示例代码仍采用 Apache License 2.0。完整的第三方来源、
+署名和许可证信息参见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
 ## 隐私与限制
 
 摄像头画面在当前设备内进行推理，本应用不会把图像帧上传到自己的服务器或 Google。MediaPipe Tasks 的官方包说明 SDK 可能发送 API 性能与使用指标；正式发布前应根据适用地区完成 telemetry 告知、同意与隐私合规评估。
