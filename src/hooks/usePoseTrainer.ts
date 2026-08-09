@@ -15,7 +15,13 @@ import {
   type NormalizedBounds,
   type PosePoint,
 } from "../lib/geometry";
-import { playCompletionCue, playRepCue } from "../lib/audio";
+import {
+  cancelSpeechPrompt,
+  playCompletionCue,
+  playRepCue,
+  shouldPlayFramingPrompt,
+  speakChinesePrompt,
+} from "../lib/audio";
 import {
   applyCameraDevice,
   applyCameraZoom,
@@ -400,6 +406,7 @@ export function usePoseTrainer({
   const zoomRangeRef = useRef<CameraZoomRange | null>(null);
   const zoomRequestRef = useRef(0);
   const scheduleNextRef = useRef<() => void>(() => undefined);
+  const resetSpeechPromptRef = useRef<() => void>(() => undefined);
   const recorderRef = useRef<SessionRecorder | null>(null);
   const [retryToken, setRetryToken] = useState(0);
   const [status, setStatus] = useState<TrainerStatus>("starting");
@@ -419,6 +426,12 @@ export function usePoseTrainer({
     useState<CameraZoomRange | null>(null);
   const [error, setError] = useState<string | null>(null);
   const completeSession = useEffectEvent(onComplete);
+  const resumeCameraAfterSpeech = useCallback(() => {
+    const video = videoRef.current;
+    if (!pausedRef.current && video?.paused) {
+      void video.play().catch(() => undefined);
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -437,6 +450,8 @@ export function usePoseTrainer({
     let qualityFrames = 0;
     let lastFeedback = exercise.readyCue;
     let lastPoseVisible = false;
+    let missingPoseSince: number | null = null;
+    let lastSpeechPromptAt: number | null = null;
     let lastQualityBucket = 0;
     let lastPhase: CounterPhase = "seeking-start";
     const cameraStreams = new Set<MediaStream>();
@@ -499,6 +514,13 @@ export function usePoseTrainer({
       lastPoseVisible = visible;
       setPoseVisible(visible);
     };
+
+    const resetSpeechPrompt = () => {
+      missingPoseSince = null;
+      lastSpeechPromptAt = null;
+      cancelSpeechPrompt();
+    };
+    resetSpeechPromptRef.current = resetSpeechPrompt;
 
     const updateVisibleBounds = () => {
       const video = videoRef.current;
@@ -630,7 +652,26 @@ export function usePoseTrainer({
         ? lastPoseVisible || requirementHeldFor >= TRACKING_READY_HOLD_MS
         : lastPoseVisible && requirementHeldFor < TRACKING_READY_HOLD_MS;
       setStablePoseVisible(visible);
-      setStableFeedback(landmarks.length ? update.feedback : exercise.readyCue);
+      const nextFeedback = landmarks.length
+        ? update.feedback
+        : exercise.readyCue;
+      setStableFeedback(nextFeedback);
+
+      if (update.requirementsMet) {
+        if (missingPoseSince !== null) resetSpeechPrompt();
+      } else if (soundEnabledRef.current && !pausedRef.current && !finished) {
+        missingPoseSince ??= message.timestamp;
+        if (
+          shouldPlayFramingPrompt(
+            message.timestamp,
+            missingPoseSince,
+            lastSpeechPromptAt,
+          )
+        ) {
+          speakChinesePrompt(nextFeedback, resumeCameraAfterSpeech);
+          lastSpeechPromptAt = message.timestamp;
+        }
+      }
       if (update.state.phase !== lastPhase) {
         lastPhase = update.state.phase;
         setPhase(update.state.phase);
@@ -649,6 +690,7 @@ export function usePoseTrainer({
         if (nextCount >= target && !finished) {
           finished = true;
           stopFrameRequest();
+          resetSpeechPrompt();
           const durationSeconds = Math.max(
             1,
             Math.round((message.timestamp - sessionStartedAt) / 1_000),
@@ -703,6 +745,7 @@ export function usePoseTrainer({
           break;
         case "ERROR":
           inFlight = false;
+          resetSpeechPrompt();
           setStatus("error");
           setError(`姿态识别没有启动：${message.message}。请检查网络后重试。`);
           break;
@@ -712,6 +755,7 @@ export function usePoseTrainer({
     worker.onerror = (workerError) => {
       if (!active) return;
       console.error(workerError);
+      resetSpeechPrompt();
       setStatus("error");
       setError("姿态识别模块加载失败。刷新页面或更换浏览器后再试一次。");
     };
@@ -853,6 +897,7 @@ export function usePoseTrainer({
     void startCamera().catch((cameraError) => {
       if (!active) return;
       stopCamera();
+      resetSpeechPrompt();
       console.error(cameraError);
       setStatus("error");
       setError(cameraErrorMessage(cameraError));
@@ -869,6 +914,8 @@ export function usePoseTrainer({
       window.clearInterval(timer);
       window.removeEventListener("resize", updateVisibleBounds);
       scheduleNextRef.current = () => undefined;
+      resetSpeechPromptRef.current = () => undefined;
+      resetSpeechPrompt();
       recorderRef.current?.discard();
       recorderRef.current = null;
       videoTrackRef.current = null;
@@ -882,29 +929,35 @@ export function usePoseTrainer({
     };
   }, [avatar, exercise.readyCue, exerciseId, modelVariant, retryToken, target]);
 
-  const retry = useCallback(() => setRetryToken((token) => token + 1), []);
+  const retry = useCallback(() => {
+    resetSpeechPromptRef.current();
+    if (soundEnabledRef.current) speakChinesePrompt("准备开始");
+    setRetryToken((token) => token + 1);
+  }, []);
 
   const togglePaused = useCallback(() => {
-    setPaused((current) => {
-      const next = !current;
-      pausedRef.current = next;
-      if (next) {
-        recorderRef.current?.pause();
-      } else {
-        recorderRef.current?.resume();
-        scheduleNextRef.current();
+    const next = !pausedRef.current;
+    pausedRef.current = next;
+    resetSpeechPromptRef.current();
+    if (next) {
+      recorderRef.current?.pause();
+    } else {
+      recorderRef.current?.resume();
+      scheduleNextRef.current();
+      if (soundEnabledRef.current) {
+        speakChinesePrompt("继续", resumeCameraAfterSpeech);
       }
-      return next;
-    });
-  }, []);
+    }
+    setPaused(next);
+  }, [resumeCameraAfterSpeech]);
 
   const toggleSound = useCallback(() => {
-    setSoundEnabled((current) => {
-      const next = !current;
-      soundEnabledRef.current = next;
-      return next;
-    });
-  }, []);
+    const next = !soundEnabledRef.current;
+    soundEnabledRef.current = next;
+    resetSpeechPromptRef.current();
+    if (next) speakChinesePrompt("声音已开启", resumeCameraAfterSpeech);
+    setSoundEnabled(next);
+  }, [resumeCameraAfterSpeech]);
 
   const setCameraZoom = useCallback((requestedZoom: number) => {
     const range = zoomRangeRef.current;

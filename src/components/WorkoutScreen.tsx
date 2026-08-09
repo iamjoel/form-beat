@@ -101,7 +101,7 @@ export function WorkoutScreen({
           className="icon-control"
           type="button"
           onClick={trainer.toggleSound}
-          aria-label={trainer.soundEnabled ? "关闭计数声音" : "打开计数声音"}
+          aria-label={trainer.soundEnabled ? "关闭声音" : "打开声音"}
           aria-pressed={trainer.soundEnabled}
         >
           <SoundIcon enabled={trainer.soundEnabled} />
