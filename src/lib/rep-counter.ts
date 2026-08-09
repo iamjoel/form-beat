@@ -1,0 +1,549 @@
+import type { ExerciseId } from "../domain/exercises";
+import {
+  average,
+  axisAngleFromHorizontal,
+  clamp,
+  jointAngle,
+  pointDistance,
+  type FrameSize,
+  type PosePoint,
+} from "./geometry";
+
+export type CounterPhase = "seeking-start" | "ready" | "moving" | "end-held";
+
+export interface PoseFrame {
+  landmarks: readonly PosePoint[];
+  worldLandmarks?: readonly PosePoint[];
+  size: FrameSize;
+  timestamp: number;
+}
+
+export interface FormClassification {
+  valid: boolean;
+  start: boolean;
+  end: boolean;
+  quality: number;
+  metric: number | null;
+  feedback: string;
+  baseline?: {
+    hipY: number;
+    legLength: number;
+  };
+}
+
+export interface RepCounterState {
+  count: number;
+  phase: CounterPhase;
+  candidateSince: number | null;
+  cycleStartedAt: number | null;
+  lastRepAt: number | null;
+  validSince: number | null;
+  invalidSince: number | null;
+  baseline: {
+    hipY: number;
+    legLength: number;
+  } | null;
+}
+
+export interface RepCounterUpdate {
+  state: RepCounterState;
+  didCount: boolean;
+  feedback: string;
+  quality: number;
+  metric: number | null;
+}
+
+const START_HOLD_MS = 150;
+const END_HOLD_MS = 120;
+const RECOVERY_HOLD_MS = 180;
+const INVALID_RESET_MS = 150;
+const REP_DEBOUNCE_MS = 400;
+const MAX_CYCLE_MS = 8_000;
+
+const MIN_CYCLE_MS: Record<ExerciseId, number> = {
+  squat: 650,
+  "push-up": 550,
+  "jumping-jack": 550,
+  lunge: 650,
+};
+
+const INDEX = {
+  leftShoulder: 11,
+  rightShoulder: 12,
+  leftElbow: 13,
+  rightElbow: 14,
+  leftWrist: 15,
+  rightWrist: 16,
+  leftHip: 23,
+  rightHip: 24,
+  leftKnee: 25,
+  rightKnee: 26,
+  leftAnkle: 27,
+  rightAnkle: 28,
+} as const;
+
+interface SidePoints {
+  shoulder: PosePoint;
+  elbow: PosePoint;
+  wrist: PosePoint;
+  hip: PosePoint;
+  knee: PosePoint;
+  ankle: PosePoint;
+}
+
+export function createRepCounterState(): RepCounterState {
+  return {
+    count: 0,
+    phase: "seeking-start",
+    candidateSince: null,
+    cycleStartedAt: null,
+    lastRepAt: null,
+    validSince: null,
+    invalidSince: null,
+    baseline: null,
+  };
+}
+
+function visibility(point: PosePoint | undefined): number {
+  return point?.visibility ?? 1;
+}
+
+function visibleEnough(points: readonly (PosePoint | undefined)[]): {
+  valid: boolean;
+  quality: number;
+} {
+  if (points.some((point) => !point)) return { valid: false, quality: 0 };
+  const scores = points.map(visibility);
+  const quality = average(scores);
+  return {
+    valid: Math.min(...scores) >= 0.55 && quality >= 0.68,
+    quality,
+  };
+}
+
+function selectSide(frame: PoseFrame): { normalized: SidePoints; world?: SidePoints } {
+  const landmark = frame.landmarks;
+  const world = frame.worldLandmarks;
+
+  const sideScore = (side: "left" | "right") => {
+    const indices =
+      side === "left"
+        ? [11, 13, 15, 23, 25, 27]
+        : [12, 14, 16, 24, 26, 28];
+    return average(indices.map((index) => visibility(landmark[index])));
+  };
+
+  const left = sideScore("left") >= sideScore("right");
+  const indices = left
+    ? [11, 13, 15, 23, 25, 27]
+    : [12, 14, 16, 24, 26, 28];
+
+  const points = indices.map((index) => landmark[index]) as PosePoint[];
+  const worldPoints = world?.length
+    ? (indices.map((index) => world[index]) as PosePoint[])
+    : undefined;
+
+  return {
+    normalized: {
+      shoulder: points[0],
+      elbow: points[1],
+      wrist: points[2],
+      hip: points[3],
+      knee: points[4],
+      ankle: points[5],
+    },
+    world: worldPoints
+      ? {
+          shoulder: worldPoints[0],
+          elbow: worldPoints[1],
+          wrist: worldPoints[2],
+          hip: worldPoints[3],
+          knee: worldPoints[4],
+          ankle: worldPoints[5],
+        }
+      : undefined,
+  };
+}
+
+function angle(
+  normalized: [PosePoint, PosePoint, PosePoint],
+  world: [PosePoint, PosePoint, PosePoint] | undefined,
+  size: FrameSize,
+): number {
+  return world
+    ? jointAngle(world[0], world[1], world[2])
+    : jointAngle(normalized[0], normalized[1], normalized[2], size);
+}
+
+function classifySquat(
+  frame: PoseFrame,
+  baseline?: RepCounterState["baseline"],
+): FormClassification {
+  const side = selectSide(frame);
+  const gate = visibleEnough([
+    side.normalized.shoulder,
+    side.normalized.hip,
+    side.normalized.knee,
+    side.normalized.ankle,
+  ]);
+
+  if (!gate.valid) {
+    return invalidClassification(gate.quality, "退后一点，让肩、髋、膝和脚踝都入镜");
+  }
+
+  const knee = angle(
+    [side.normalized.hip, side.normalized.knee, side.normalized.ankle],
+    side.world ? [side.world.hip, side.world.knee, side.world.ankle] : undefined,
+    frame.size,
+  );
+  const hip = angle(
+    [side.normalized.shoulder, side.normalized.hip, side.normalized.knee],
+    side.world ? [side.world.shoulder, side.world.hip, side.world.knee] : undefined,
+    frame.size,
+  );
+
+  const hipY = side.normalized.hip.y * frame.size.height;
+  const legLength = pointDistance(
+    side.normalized.hip,
+    side.normalized.ankle,
+    frame.size,
+  );
+  const hipDrop =
+    baseline && baseline.legLength > 0
+      ? (hipY - baseline.hipY) / baseline.legLength
+      : 0;
+
+  return {
+    valid: true,
+    start: knee >= 160 && hip >= 150,
+    end: knee <= 105 && hipDrop >= 0.1,
+    quality: gate.quality,
+    metric: Math.round(knee),
+    feedback:
+      knee > 105 || hipDrop < 0.1
+        ? "继续下蹲，让髋部明显下降"
+        : "深度很好，站起来",
+    baseline: { hipY, legLength },
+  };
+}
+
+function classifyPushUp(frame: PoseFrame): FormClassification {
+  const side = selectSide(frame);
+  const gate = visibleEnough(Object.values(side.normalized));
+
+  if (!gate.valid) {
+    return invalidClassification(gate.quality, "从侧面拍摄，让手腕到脚踝完整入镜");
+  }
+
+  const elbow = angle(
+    [side.normalized.shoulder, side.normalized.elbow, side.normalized.wrist],
+    side.world
+      ? [side.world.shoulder, side.world.elbow, side.world.wrist]
+      : undefined,
+    frame.size,
+  );
+  const bodyLine = angle(
+    [side.normalized.shoulder, side.normalized.hip, side.normalized.ankle],
+    side.world
+      ? [side.world.shoulder, side.world.hip, side.world.ankle]
+      : undefined,
+    frame.size,
+  );
+  const bodyAxis = axisAngleFromHorizontal(
+    side.normalized.shoulder,
+    side.normalized.ankle,
+    frame.size,
+  );
+  const formReady = bodyLine >= 140 && bodyAxis <= 45;
+
+  return {
+    valid: true,
+    start: formReady && elbow >= 155,
+    end: formReady && elbow <= 95,
+    quality: gate.quality,
+    metric: Math.round(elbow),
+    feedback: !formReady
+      ? "收紧核心，让肩、髋、脚踝保持一条直线"
+      : elbow > 95
+        ? "屈肘下压，胸口靠近地面"
+        : "到位，推回顶部",
+  };
+}
+
+function classifyJumpingJack(frame: PoseFrame): FormClassification {
+  const landmark = frame.landmarks;
+  const required = [
+    INDEX.leftShoulder,
+    INDEX.rightShoulder,
+    INDEX.leftWrist,
+    INDEX.rightWrist,
+    INDEX.leftHip,
+    INDEX.rightHip,
+    INDEX.leftAnkle,
+    INDEX.rightAnkle,
+  ].map((index) => landmark[index]);
+  const gate = visibleEnough(required);
+
+  if (!gate.valid) {
+    return invalidClassification(gate.quality, "退后一点，给手臂和双脚留出张开的空间");
+  }
+
+  const [leftShoulder, rightShoulder, leftWrist, rightWrist, leftHip, rightHip, leftAnkle, rightAnkle] =
+    required as PosePoint[];
+  const leftArm = jointAngle(leftHip, leftShoulder, leftWrist, frame.size);
+  const rightArm = jointAngle(rightHip, rightShoulder, rightWrist, frame.size);
+  const armAngle = average([leftArm, rightArm]);
+  const shoulderWidth = pointDistance(leftShoulder, rightShoulder, frame.size);
+  const ankleSpan = pointDistance(leftAnkle, rightAnkle, frame.size);
+  const spanRatio = shoulderWidth > 0 ? ankleSpan / shoulderWidth : 0;
+  const balanced = Math.abs(leftArm - rightArm) <= 40;
+
+  return {
+    valid: true,
+    start: armAngle <= 35 && spanRatio <= 1.15,
+    end: balanced && armAngle >= 145 && spanRatio >= 1.65,
+    quality: gate.quality,
+    metric: Math.round(armAngle),
+    feedback: !balanced
+      ? "两只手一起举高"
+      : armAngle < 145 || spanRatio < 1.65
+        ? "手举过头顶，同时双脚跳开"
+        : "打开到位，回到并拢站姿",
+  };
+}
+
+function classifyLunge(frame: PoseFrame): FormClassification {
+  const landmark = frame.landmarks;
+  const world = frame.worldLandmarks;
+  const requiredIndices = [23, 24, 25, 26, 27, 28];
+  const required = requiredIndices.map((index) => landmark[index]);
+  const gate = visibleEnough(required);
+
+  if (!gate.valid) {
+    return invalidClassification(gate.quality, "侧身退后，让髋部和前后两只脚完整入镜");
+  }
+
+  const [leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle] =
+    required as PosePoint[];
+  const worldPoint = (index: number) => world?.[index];
+  const leftKneeAngle = angle(
+    [leftHip, leftKnee, leftAnkle],
+    worldPoint(23) && worldPoint(25) && worldPoint(27)
+      ? [worldPoint(23)!, worldPoint(25)!, worldPoint(27)!]
+      : undefined,
+    frame.size,
+  );
+  const rightKneeAngle = angle(
+    [rightHip, rightKnee, rightAnkle],
+    worldPoint(24) && worldPoint(26) && worldPoint(28)
+      ? [worldPoint(24)!, worldPoint(26)!, worldPoint(28)!]
+      : undefined,
+    frame.size,
+  );
+  const frontKnee = Math.min(leftKneeAngle, rightKneeAngle);
+  const backKnee = Math.max(leftKneeAngle, rightKneeAngle);
+  const legLength = average([
+    pointDistance(leftHip, leftAnkle, frame.size),
+    pointDistance(rightHip, rightAnkle, frame.size),
+  ]);
+  const foreAftSpan = Math.abs(leftAnkle.x - rightAnkle.x) * frame.size.width;
+  const strideReady = legLength > 0 && foreAftSpan / legLength >= 0.28;
+
+  return {
+    valid: true,
+    start: leftKneeAngle >= 155 && rightKneeAngle >= 155,
+    end: strideReady && frontKnee <= 105 && backKnee <= 135,
+    quality: gate.quality,
+    metric: Math.round(frontKnee),
+    feedback: !strideReady
+      ? "前后脚再分开一些"
+      : frontKnee > 105 || backKnee > 135
+        ? "垂直下沉，让前后膝都弯曲"
+        : "到位，推回站姿",
+  };
+}
+
+function invalidClassification(quality: number, feedback: string): FormClassification {
+  return {
+    valid: false,
+    start: false,
+    end: false,
+    quality,
+    metric: null,
+    feedback,
+  };
+}
+
+export function classifyPose(exerciseId: ExerciseId, frame: PoseFrame): FormClassification {
+  if (frame.landmarks.length < 29) {
+    return invalidClassification(0, "全身进入画面后，我会自动开始识别");
+  }
+
+  switch (exerciseId) {
+    case "squat":
+      return classifySquat(frame);
+    case "push-up":
+      return classifyPushUp(frame);
+    case "jumping-jack":
+      return classifyJumpingJack(frame);
+    case "lunge":
+      return classifyLunge(frame);
+  }
+}
+
+function resetCycle(state: RepCounterState): RepCounterState {
+  return {
+    ...state,
+    phase: "seeking-start",
+    candidateSince: null,
+    cycleStartedAt: null,
+    baseline: null,
+  };
+}
+
+function withCandidate(
+  state: RepCounterState,
+  timestamp: number,
+): { state: RepCounterState; heldFor: number } {
+  const candidateSince = state.candidateSince ?? timestamp;
+  return {
+    state: { ...state, candidateSince },
+    heldFor: timestamp - candidateSince,
+  };
+}
+
+export function advanceRepCounter(
+  exerciseId: ExerciseId,
+  state: RepCounterState,
+  classification: FormClassification,
+  timestamp: number,
+): RepCounterUpdate {
+  let next = { ...state };
+
+  if (!classification.valid) {
+    const invalidSince = next.invalidSince ?? timestamp;
+    next = { ...next, invalidSince, validSince: null, candidateSince: null };
+    if (timestamp - invalidSince >= INVALID_RESET_MS && next.phase !== "seeking-start") {
+      next = { ...resetCycle(next), invalidSince };
+    }
+    return result(next, false, classification);
+  }
+
+  const validSince = next.validSince ?? timestamp;
+  next = { ...next, validSince, invalidSince: null };
+  if (timestamp - validSince < RECOVERY_HOLD_MS) {
+    return result(next, false, classification, "保持一下，正在锁定姿势");
+  }
+
+  if (
+    next.cycleStartedAt !== null &&
+    timestamp - next.cycleStartedAt > MAX_CYCLE_MS
+  ) {
+    next = resetCycle(next);
+  }
+
+  switch (next.phase) {
+    case "seeking-start": {
+      if (!classification.start) {
+        next.candidateSince = null;
+        return result(next, false, classification);
+      }
+      const candidate = withCandidate(next, timestamp);
+      next = candidate.state;
+      if (candidate.heldFor >= START_HOLD_MS) {
+        next = {
+          ...next,
+          phase: "ready",
+          candidateSince: null,
+          baseline: classification.baseline ?? next.baseline,
+        };
+        return result(next, false, classification, "姿势已锁定，开始吧");
+      }
+      break;
+    }
+    case "ready":
+      if (classification.start && classification.baseline) {
+        next.baseline = classification.baseline;
+      }
+      if (!classification.start) {
+        next = {
+          ...next,
+          phase: "moving",
+          cycleStartedAt: timestamp,
+          candidateSince: null,
+        };
+      }
+      break;
+    case "moving": {
+      if (classification.start) {
+        next = { ...next, phase: "ready", cycleStartedAt: null, candidateSince: null };
+        break;
+      }
+      if (!classification.end) {
+        next.candidateSince = null;
+        break;
+      }
+      const candidate = withCandidate(next, timestamp);
+      next = candidate.state;
+      if (candidate.heldFor >= END_HOLD_MS) {
+        next = { ...next, phase: "end-held", candidateSince: null };
+      }
+      break;
+    }
+    case "end-held": {
+      if (!classification.start) {
+        next.candidateSince = null;
+        break;
+      }
+      const candidate = withCandidate(next, timestamp);
+      next = candidate.state;
+      const cycleDuration = timestamp - (next.cycleStartedAt ?? timestamp);
+      const sinceLastRep = timestamp - (next.lastRepAt ?? -Infinity);
+      if (
+        candidate.heldFor >= START_HOLD_MS &&
+        cycleDuration >= MIN_CYCLE_MS[exerciseId] &&
+        sinceLastRep >= REP_DEBOUNCE_MS
+      ) {
+        next = {
+          ...next,
+          count: next.count + 1,
+          phase: "ready",
+          candidateSince: null,
+          cycleStartedAt: null,
+          lastRepAt: timestamp,
+        };
+        return result(next, true, classification, "漂亮，完成一次");
+      }
+      break;
+    }
+  }
+
+  return result(next, false, classification);
+}
+
+function result(
+  state: RepCounterState,
+  didCount: boolean,
+  classification: FormClassification,
+  feedback = classification.feedback,
+): RepCounterUpdate {
+  return {
+    state,
+    didCount,
+    feedback,
+    quality: clamp(classification.quality, 0, 1),
+    metric: classification.metric,
+  };
+}
+
+export function updateRepCounter(
+  exerciseId: ExerciseId,
+  state: RepCounterState,
+  frame: PoseFrame,
+): RepCounterUpdate {
+  const classification =
+    exerciseId === "squat"
+      ? classifySquat(frame, state.baseline)
+      : classifyPose(exerciseId, frame);
+  return advanceRepCounter(exerciseId, state, classification, frame.timestamp);
+}
