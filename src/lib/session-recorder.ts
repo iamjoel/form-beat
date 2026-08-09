@@ -107,11 +107,11 @@ export function createSessionRecorder(
     const currentWidth = video.videoWidth;
     const currentHeight = video.videoHeight;
     if (!currentWidth || !currentHeight) return;
-    const previewZoom = Math.max(1, getPreviewZoom());
-    const cropWidth = currentWidth / previewZoom;
-    const cropHeight = currentHeight / previewZoom;
-    const cropX = (currentWidth - cropWidth) / 2;
-    const cropY = (currentHeight - cropHeight) / 2;
+    const previewZoom = Math.min(1, Math.max(0.1, getPreviewZoom()));
+    const drawWidth = canvas.width * previewZoom;
+    const drawHeight = canvas.height * previewZoom;
+    const offsetX = (canvas.width - drawWidth) / 2;
+    const offsetY = (canvas.height - drawHeight) / 2;
 
     context.fillStyle = "#0e0f0d";
     context.fillRect(0, 0, canvas.width, canvas.height);
@@ -120,26 +120,18 @@ export function createSessionRecorder(
     context.scale(-1, 1);
     context.drawImage(
       video,
-      cropX,
-      cropY,
-      cropWidth,
-      cropHeight,
-      0,
-      0,
-      canvas.width,
-      canvas.height,
+      offsetX,
+      offsetY,
+      drawWidth,
+      drawHeight,
     );
     if (overlay.width > 0 && overlay.height > 0) {
       context.drawImage(
         overlay,
-        cropX,
-        cropY,
-        cropWidth,
-        cropHeight,
-        0,
-        0,
-        canvas.width,
-        canvas.height,
+        offsetX,
+        offsetY,
+        drawWidth,
+        drawHeight,
       );
     }
     context.restore();

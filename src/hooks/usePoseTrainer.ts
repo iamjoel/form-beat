@@ -17,7 +17,7 @@ import {
   applyCameraZoom,
   applyWidestCameraView,
   findWiderCameraDevice,
-  getCameraZoomRange,
+  getCameraZoomOutRange,
   type CameraCandidate,
   type CameraZoomRange,
 } from "../lib/camera";
@@ -80,7 +80,11 @@ interface PoseTrainer {
   setCameraZoom: (zoom: number) => void;
 }
 
-const DIGITAL_ZOOM_RANGE: CameraZoomRange = { min: 1, max: 3, step: 0.1 };
+const DIGITAL_ZOOM_OUT_RANGE: CameraZoomRange = {
+  min: 0.5,
+  max: 1,
+  step: 0.1,
+};
 
 const CONNECTIONS: readonly [number, number][] = [
   [0, 11],
@@ -803,25 +807,22 @@ export function usePoseTrainer({
         let hardwareRange: CameraZoomRange | null = null;
         if (hardwareZoomReady && typeof videoTrack.getCapabilities === "function") {
           try {
-            hardwareRange = getCameraZoomRange(videoTrack.getCapabilities());
+            const zoomOutRange = getCameraZoomOutRange(
+              videoTrack.getCapabilities(),
+            );
+            if (
+              zoomOutRange &&
+              (await applyCameraZoom(videoTrack, zoomOutRange.max))
+            ) {
+              hardwareRange = zoomOutRange;
+            }
           } catch {
             hardwareRange = null;
           }
         }
 
-        const range = hardwareRange ?? DIGITAL_ZOOM_RANGE;
-        const settingsZoom = (
-          videoTrack.getSettings() as MediaTrackSettings & { zoom?: number }
-        ).zoom;
-        const initialZoom = hardwareRange
-          ? Math.min(
-              range.max,
-              Math.max(
-                range.min,
-                typeof settingsZoom === "number" ? settingsZoom : range.min,
-              ),
-            )
-          : 1;
+        const range = hardwareRange ?? DIGITAL_ZOOM_OUT_RANGE;
+        const initialZoom = range.max;
         zoomModeRef.current = hardwareRange ? "hardware" : "digital";
         zoomRangeRef.current = range;
         previewZoomRef.current = 1;

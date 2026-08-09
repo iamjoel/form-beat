@@ -595,8 +595,9 @@
     cursor: not-allowed;
   }
 
-  .zoom-mark {
-    font-size: 1rem;
+  .zoom-limit {
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
     font-weight: 700;
     line-height: 1;
   }

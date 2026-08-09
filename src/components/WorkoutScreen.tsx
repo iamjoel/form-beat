@@ -155,8 +155,8 @@ export function WorkoutScreen({
           {trainer.cameraZoomRange ? (
             <label className="workout-zoom">
               <span className="sr-only">摄像头变焦</span>
-              <span className="zoom-mark" aria-hidden="true">
-                +
+              <span className="zoom-limit" aria-hidden="true">
+                {formatZoom(trainer.cameraZoomRange.max)}
               </span>
               <input
                 type="range"
@@ -172,8 +172,8 @@ export function WorkoutScreen({
                 aria-orientation="vertical"
                 aria-valuetext={formatZoom(trainer.cameraZoom)}
               />
-              <span className="zoom-mark" aria-hidden="true">
-                −
+              <span className="zoom-limit" aria-hidden="true">
+                {formatZoom(trainer.cameraZoomRange.min)}
               </span>
               <output aria-hidden="true">{formatZoom(trainer.cameraZoom)}</output>
             </label>

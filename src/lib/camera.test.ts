@@ -5,6 +5,7 @@ import {
   applyWidestCameraView,
   findWiderCameraDevice,
   getCameraZoomRange,
+  getCameraZoomOutRange,
   minimumCameraZoom,
 } from "./camera";
 
@@ -127,6 +128,24 @@ describe("getCameraZoomRange", () => {
     expect(
       getCameraZoomRange({
         zoom: { min: 1, max: 1, step: 0.1 },
+      } as MediaTrackCapabilities),
+    ).toBeNull();
+  });
+});
+
+describe("getCameraZoomOutRange", () => {
+  it("caps hardware zoom at the normal 1x view", () => {
+    expect(
+      getCameraZoomOutRange({
+        zoom: { min: 0.5, max: 4, step: 0.1 },
+      } as MediaTrackCapabilities),
+    ).toEqual({ min: 0.5, max: 1, step: 0.1 });
+  });
+
+  it("returns null when the camera can only zoom in", () => {
+    expect(
+      getCameraZoomOutRange({
+        zoom: { min: 1, max: 4, step: 0.1 },
       } as MediaTrackCapabilities),
     ).toBeNull();
   });

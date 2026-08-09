@@ -139,6 +139,23 @@ export function getCameraZoomRange(
   };
 }
 
+/** Restricts hardware zoom to wider-than-normal views, never above 1×. */
+export function getCameraZoomOutRange(
+  capabilities: MediaTrackCapabilities,
+): CameraZoomRange | null {
+  const range = getCameraZoomRange(capabilities);
+  if (!range) return null;
+
+  const max = Math.min(1, range.max);
+  if (max <= range.min) return null;
+
+  return {
+    min: range.min,
+    max,
+    step: Math.min(range.step, max - range.min),
+  };
+}
+
 /** Applies one hardware zoom value while preserving unrelated constraints. */
 export async function applyCameraZoom(
   track: MediaStreamTrack,
