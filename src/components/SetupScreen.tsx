@@ -118,15 +118,17 @@ export function SetupScreen({
             </button>
             <label>
               <span className="sr-only">目标次数</span>
-              <input
-                type="number"
-                min={MIN_TARGET}
-                max={MAX_TARGET}
-                inputMode="numeric"
-                value={target}
-                onChange={handleTargetInput}
-              />
-              <span>次</span>
+              <span className="target-value">
+                <input
+                  type="number"
+                  min={MIN_TARGET}
+                  max={MAX_TARGET}
+                  inputMode="numeric"
+                  value={target}
+                  onChange={handleTargetInput}
+                />
+                <span>次</span>
+              </span>
             </label>
             <button
               type="button"

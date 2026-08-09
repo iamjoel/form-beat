@@ -252,8 +252,13 @@
   }
 
   .target-stepper label {
-    display: flex;
+    display: grid;
     min-width: 0;
+    place-items: center;
+  }
+
+  .target-value {
+    display: flex;
     align-items: baseline;
     justify-content: center;
   }
@@ -278,7 +283,7 @@
     appearance: none;
   }
 
-  .target-stepper label > span:not(.sr-only) {
+  .target-value > span {
     margin-left: 0.35rem;
     font-size: 0.875rem;
     font-weight: 560;
@@ -779,12 +784,6 @@
     font-size: 1.5rem;
     font-weight: 760;
     letter-spacing: -0.04em;
-  }
-
-  .records-header span {
-    font-size: 0.8125rem;
-    font-weight: 560;
-    color: var(--muted);
   }
 
   .records-status {

@@ -62,7 +62,6 @@ export function RecordsScreen({ onHome }: RecordsScreenProps) {
       <main className="records-content" aria-labelledby="records-title">
         <header className="records-header">
           <h1 id="records-title">记录</h1>
-          <span>仅存储在本机</span>
         </header>
 
         {state.status === "loading" ? (

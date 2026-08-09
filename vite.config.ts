@@ -4,6 +4,9 @@ import { sites } from "./build/sites-vite-plugin.ts";
 
 export default defineConfig({
   plugins: [react(), sites()],
+  build: {
+    outDir: "dist/client",
+  },
   optimizeDeps: {
     exclude: ["@mediapipe/tasks-vision"],
   },
@@ -11,7 +14,7 @@ export default defineConfig({
     format: "es",
   },
   server: {
-    host: "127.0.0.1",
+    host: "0.0.0.0",
     headers: {
       "Cross-Origin-Embedder-Policy": "require-corp",
       "Cross-Origin-Opener-Policy": "same-origin",
