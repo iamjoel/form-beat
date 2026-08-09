@@ -1,7 +1,37 @@
 let audioContext: AudioContext | null = null;
+let speechGeneration = 0;
+
+export type SpokenDirection = "向前" | "向后" | "向左" | "向右";
 
 const FRAMING_PROMPT_DELAY_MS = 1_400;
 const FRAMING_PROMPT_REPEAT_MS = 9_000;
+const FRIENDLY_FEMALE_VOICE_NAMES = [
+  "xiaoxiao",
+  "晓晓",
+  "xiaoyi",
+  "晓伊",
+  "tingting",
+  "婷婷",
+  "huihui",
+  "慧慧",
+  "yaoyao",
+  "瑶瑶",
+  "meijia",
+  "美佳",
+] as const;
+const KNOWN_MALE_VOICE_NAMES = [
+  "kangkang",
+  "康康",
+  "yunxi",
+  "云希",
+  "yunjian",
+  "云健",
+  "yunyang",
+  "云扬",
+  "yunfeng",
+  "云枫",
+  "limu",
+] as const;
 
 function getSpeechSynthesis(): SpeechSynthesis | null {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) {
@@ -13,13 +43,77 @@ function getSpeechSynthesis(): SpeechSynthesis | null {
 function findChineseVoice(
   synthesis: SpeechSynthesis,
 ): SpeechSynthesisVoice | undefined {
-  let fallback: SpeechSynthesisVoice | undefined;
+  let bestVoice: SpeechSynthesisVoice | undefined;
+  let bestLanguageTier = Infinity;
+  let bestScore = -Infinity;
   for (const voice of synthesis.getVoices()) {
-    const language = voice.lang.toLowerCase().replace("_", "-");
-    if (language === "zh-cn") return voice;
-    if (!fallback && language.startsWith("zh")) fallback = voice;
+    const language = voice.lang.toLowerCase().replaceAll("_", "-");
+    let languageTier: number;
+    if (language === "zh-cn" || language.startsWith("zh-cn-")) {
+      languageTier = 0;
+    } else if (
+      language === "zh-hans-cn" ||
+      language === "cmn-cn" ||
+      language === "zh-hans" ||
+      language === "cmn"
+    ) {
+      languageTier = 1;
+    } else if (
+      (language.startsWith("zh") &&
+        !language.startsWith("zh-tw") &&
+        !language.startsWith("zh-hk")) ||
+      language.startsWith("cmn")
+    ) {
+      languageTier = 2;
+    } else {
+      continue;
+    }
+
+    let score = 0;
+
+    const normalizedName = voice.name
+      .normalize("NFKC")
+      .toLowerCase()
+      .replace(/[\s\-_()（）]/g, "");
+    if (
+      FRIENDLY_FEMALE_VOICE_NAMES.some((name) =>
+        normalizedName.includes(name),
+      )
+    ) {
+      score += 35;
+    } else if (
+      normalizedName.includes("female") ||
+      normalizedName.includes("woman") ||
+      normalizedName.includes("女声") ||
+      normalizedName.includes("女聲")
+    ) {
+      score += 20;
+    }
+    if (
+      KNOWN_MALE_VOICE_NAMES.some((name) => normalizedName.includes(name))
+    ) {
+      score -= 35;
+    }
+    if (
+      normalizedName.includes("natural") ||
+      normalizedName.includes("enhanced") ||
+      normalizedName.includes("自然")
+    ) {
+      score += 8;
+    }
+    if (voice.localService) score += 6;
+    if (voice.default) score += 3;
+
+    if (
+      languageTier < bestLanguageTier ||
+      (languageTier === bestLanguageTier && score > bestScore)
+    ) {
+      bestVoice = voice;
+      bestLanguageTier = languageTier;
+      bestScore = score;
+    }
   }
-  return fallback;
+  return bestVoice;
 }
 
 function getAudioContext(): AudioContext | null {
@@ -44,6 +138,22 @@ export async function primeAudio(): Promise<void> {
   if (context?.state === "suspended") await context.resume();
 }
 
+export function primeSpeechSynthesis(): void {
+  const synthesis = getSpeechSynthesis();
+  if (!synthesis || typeof SpeechSynthesisUtterance === "undefined") return;
+
+  try {
+    speechGeneration += 1;
+    const utterance = new SpeechSynthesisUtterance("向后");
+    utterance.lang = "zh-CN";
+    utterance.volume = 0;
+    synthesis.speak(utterance);
+    synthesis.cancel();
+  } catch {
+    // Speech remains an optional enhancement in restricted webviews.
+  }
+}
+
 export function shouldPlayFramingPrompt(
   now: number,
   missingSince: number,
@@ -56,7 +166,7 @@ export function shouldPlayFramingPrompt(
 }
 
 export function speakChinesePrompt(
-  message: string,
+  message: SpokenDirection,
   onFinished?: () => void,
 ): void {
   const synthesis = getSpeechSynthesis();
@@ -70,16 +180,20 @@ export function speakChinesePrompt(
   }
 
   try {
+    const generation = ++speechGeneration;
     const utterance = new SpeechSynthesisUtterance(text);
     const voice = findChineseVoice(synthesis);
     utterance.lang = voice?.lang ?? "zh-CN";
-    utterance.rate = 0.95;
-    utterance.pitch = 1;
+    utterance.rate = 1.03;
+    utterance.pitch = 1.02;
     utterance.volume = 1;
     if (voice) utterance.voice = voice;
     if (onFinished) {
-      utterance.onend = onFinished;
-      utterance.onerror = onFinished;
+      const finishCurrentSpeech = () => {
+        if (generation === speechGeneration) onFinished();
+      };
+      utterance.onend = finishCurrentSpeech;
+      utterance.onerror = finishCurrentSpeech;
     }
 
     synthesis.cancel();
@@ -90,6 +204,7 @@ export function speakChinesePrompt(
 }
 
 export function cancelSpeechPrompt(): void {
+  speechGeneration += 1;
   try {
     getSpeechSynthesis()?.cancel();
   } catch {

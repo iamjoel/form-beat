@@ -21,6 +21,7 @@ import {
   playRepCue,
   shouldPlayFramingPrompt,
   speakChinesePrompt,
+  type SpokenDirection,
 } from "../lib/audio";
 import {
   applyCameraDevice,
@@ -40,6 +41,7 @@ import {
   createRepCounterState,
   updateRepCounter,
   type CounterPhase,
+  type FramingDirection,
   type PoseAngleOverlay,
 } from "../lib/rep-counter";
 import {
@@ -90,6 +92,12 @@ interface PoseTrainer {
 }
 
 const TRACKING_READY_HOLD_MS = 120;
+const FRAMING_SPEECH: Record<FramingDirection, SpokenDirection> = {
+  forward: "向前",
+  backward: "向后",
+  left: "向左",
+  right: "向右",
+};
 
 const CONNECTIONS: readonly [number, number][] = [
   [0, 11],
@@ -450,7 +458,8 @@ export function usePoseTrainer({
     let qualityFrames = 0;
     let lastFeedback = exercise.readyCue;
     let lastPoseVisible = false;
-    let missingPoseSince: number | null = null;
+    let speechDirection: FramingDirection | null = null;
+    let directionSince: number | null = null;
     let lastSpeechPromptAt: number | null = null;
     let lastQualityBucket = 0;
     let lastPhase: CounterPhase = "seeking-start";
@@ -516,7 +525,8 @@ export function usePoseTrainer({
     };
 
     const resetSpeechPrompt = () => {
-      missingPoseSince = null;
+      speechDirection = null;
+      directionSince = null;
       lastSpeechPromptAt = null;
       cancelSpeechPrompt();
     };
@@ -658,19 +668,35 @@ export function usePoseTrainer({
       setStableFeedback(nextFeedback);
 
       if (update.requirementsMet) {
-        if (missingPoseSince !== null) resetSpeechPrompt();
-      } else if (soundEnabledRef.current && !pausedRef.current && !finished) {
-        missingPoseSince ??= message.timestamp;
+        if (speechDirection !== null) resetSpeechPrompt();
+      } else if (
+        update.framingDirection &&
+        soundEnabledRef.current &&
+        !pausedRef.current &&
+        !finished
+      ) {
+        if (speechDirection !== update.framingDirection) {
+          speechDirection = update.framingDirection;
+          directionSince = message.timestamp;
+          lastSpeechPromptAt = null;
+          cancelSpeechPrompt();
+        }
         if (
+          directionSince !== null &&
           shouldPlayFramingPrompt(
             message.timestamp,
-            missingPoseSince,
+            directionSince,
             lastSpeechPromptAt,
           )
         ) {
-          speakChinesePrompt(nextFeedback, resumeCameraAfterSpeech);
+          speakChinesePrompt(
+            FRAMING_SPEECH[update.framingDirection],
+            resumeCameraAfterSpeech,
+          );
           lastSpeechPromptAt = message.timestamp;
         }
+      } else if (speechDirection !== null) {
+        resetSpeechPrompt();
       }
       if (update.state.phase !== lastPhase) {
         lastPhase = update.state.phase;
@@ -931,7 +957,6 @@ export function usePoseTrainer({
 
   const retry = useCallback(() => {
     resetSpeechPromptRef.current();
-    if (soundEnabledRef.current) speakChinesePrompt("准备开始");
     setRetryToken((token) => token + 1);
   }, []);
 
@@ -944,20 +969,16 @@ export function usePoseTrainer({
     } else {
       recorderRef.current?.resume();
       scheduleNextRef.current();
-      if (soundEnabledRef.current) {
-        speakChinesePrompt("继续", resumeCameraAfterSpeech);
-      }
     }
     setPaused(next);
-  }, [resumeCameraAfterSpeech]);
+  }, []);
 
   const toggleSound = useCallback(() => {
     const next = !soundEnabledRef.current;
     soundEnabledRef.current = next;
     resetSpeechPromptRef.current();
-    if (next) speakChinesePrompt("声音已开启", resumeCameraAfterSpeech);
     setSoundEnabled(next);
-  }, [resumeCameraAfterSpeech]);
+  }, []);
 
   const setCameraZoom = useCallback((requestedZoom: number) => {
     const range = zoomRangeRef.current;

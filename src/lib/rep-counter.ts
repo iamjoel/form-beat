@@ -12,6 +12,7 @@ import {
 } from "./geometry";
 
 export type CounterPhase = "seeking-start" | "ready" | "moving" | "end-held";
+export type FramingDirection = "forward" | "backward" | "left" | "right";
 
 export interface PoseFrame {
   landmarks: readonly PosePoint[];
@@ -29,6 +30,7 @@ export interface FormClassification {
   metric: number | null;
   angleOverlays: readonly PoseAngleOverlay[];
   feedback: string;
+  framingDirection?: FramingDirection;
   baseline?: {
     hipY: number;
     legLength: number;
@@ -57,6 +59,7 @@ export interface RepCounterUpdate {
   metric: number | null;
   angleOverlays: readonly PoseAngleOverlay[];
   requirementsMet: boolean;
+  framingDirection: FramingDirection | null;
 }
 
 export interface PoseAngleOverlay {
@@ -168,20 +171,124 @@ function visibility(point: PosePoint | undefined): number {
   return point.visibility ?? 1;
 }
 
+function framingDirection(
+  points: readonly (PosePoint | undefined)[],
+  bounds: NormalizedBounds,
+): FramingDirection | null {
+  const boundsWidth = Math.max(Number.EPSILON, bounds.maxX - bounds.minX);
+  const boundsHeight = Math.max(Number.EPSILON, bounds.maxY - bounds.minY);
+  let reliableCount = 0;
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minY = Infinity;
+  let maxY = -Infinity;
+  let leftOverflow = 0;
+  let rightOverflow = 0;
+  let topOverflow = 0;
+  let bottomOverflow = 0;
+  let leftOverflowCount = 0;
+  let rightOverflowCount = 0;
+
+  for (const point of points) {
+    if (
+      !point ||
+      visibility(point) < 0.35 ||
+      !Number.isFinite(point.x) ||
+      !Number.isFinite(point.y)
+    ) {
+      continue;
+    }
+
+    reliableCount += 1;
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+
+    if (point.x < bounds.minX) {
+      const overflow = (bounds.minX - point.x) / boundsWidth;
+      if (overflow >= 0.02) {
+        leftOverflow += overflow;
+        leftOverflowCount += 1;
+      }
+    } else if (point.x > bounds.maxX) {
+      const overflow = (point.x - bounds.maxX) / boundsWidth;
+      if (overflow >= 0.02) {
+        rightOverflow += overflow;
+        rightOverflowCount += 1;
+      }
+    }
+    if (point.y < bounds.minY) {
+      const overflow = (bounds.minY - point.y) / boundsHeight;
+      if (overflow >= 0.02) topOverflow += overflow;
+    } else if (point.y > bounds.maxY) {
+      const overflow = (point.y - bounds.maxY) / boundsHeight;
+      if (overflow >= 0.02) bottomOverflow += overflow;
+    }
+  }
+
+  if (reliableCount < Math.ceil(points.length * 0.5)) return null;
+
+  const horizontalSpan = (maxX - minX) / boundsWidth;
+  const verticalSpan = (maxY - minY) / boundsHeight;
+  const relativeDiagonal = Math.hypot(horizontalSpan, verticalSpan) / Math.SQRT2;
+  const horizontalOverflow = Math.max(leftOverflow, rightOverflow);
+  const verticalOverflow = Math.max(topOverflow, bottomOverflow);
+
+  const enoughForScale = reliableCount >= Math.ceil(points.length * 0.75);
+  if (
+    (leftOverflow >= 0.02 && rightOverflow >= 0.02) ||
+    (topOverflow >= 0.02 && bottomOverflow >= 0.02) ||
+    (enoughForScale && Math.max(horizontalSpan, verticalSpan) >= 0.92) ||
+    (verticalOverflow >= 0.02 && verticalOverflow >= horizontalOverflow)
+  ) {
+    return "backward";
+  }
+
+  if (horizontalOverflow >= 0.025) {
+    const leftWins = leftOverflow > rightOverflow;
+    const winningOverflow = leftWins ? leftOverflow : rightOverflow;
+    const losingOverflow = leftWins ? rightOverflow : leftOverflow;
+    const winningCount = leftWins ? leftOverflowCount : rightOverflowCount;
+    if (
+      (winningCount >= 2 || winningOverflow >= 0.06) &&
+      winningOverflow >= losingOverflow * 1.8
+    ) {
+      // The preview is mirrored: raw-left appears on the user's right.
+      return leftWins ? "left" : "right";
+    }
+  }
+
+  if (
+    reliableCount === points.length &&
+    relativeDiagonal >= 0.04 &&
+    relativeDiagonal < 0.16
+  ) {
+    return "forward";
+  }
+
+  return null;
+}
+
 function visibleEnough(
   points: readonly (PosePoint | undefined)[],
   bounds = FULL_NORMALIZED_BOUNDS,
 ): {
   valid: boolean;
   quality: number;
+  framingDirection: FramingDirection | null;
 } {
-  if (points.length === 0) return { valid: false, quality: 0 };
+  if (points.length === 0) {
+    return { valid: false, quality: 0, framingDirection: null };
+  }
 
   let qualityTotal = 0;
   let minimumVisibility = 1;
   let insideFrame = true;
   for (const point of points) {
-    if (!point) return { valid: false, quality: 0 };
+    if (!point) {
+      return { valid: false, quality: 0, framingDirection: null };
+    }
     const pointVisibility = visibility(point);
     qualityTotal += pointVisibility;
     minimumVisibility = Math.min(minimumVisibility, pointVisibility);
@@ -195,9 +302,11 @@ function visibleEnough(
   }
 
   const quality = qualityTotal / points.length;
+  const valid = insideFrame && minimumVisibility >= 0.55 && quality >= 0.68;
   return {
-    valid: insideFrame && minimumVisibility >= 0.55 && quality >= 0.68,
+    valid,
     quality,
+    framingDirection: valid ? null : framingDirection(points, bounds),
   };
 }
 
@@ -289,7 +398,11 @@ function classifySquat(
   );
 
   if (!gate.valid) {
-    return invalidClassification(gate.quality, "让肩、髋、膝和脚踝进入画面");
+    return invalidClassification(
+      gate.quality,
+      "让肩、髋、膝和脚踝进入画面",
+      gate.framingDirection,
+    );
   }
 
   const knee = angle(
@@ -354,6 +467,7 @@ function classifyPushUp(frame: PoseFrame): FormClassification {
     return invalidClassification(
       gate.quality,
       "让肩、肘、手腕、髋和脚踝进入画面",
+      gate.framingDirection,
     );
   }
 
@@ -426,6 +540,7 @@ function classifyJumpingJack(frame: PoseFrame): FormClassification {
     return invalidClassification(
       gate.quality,
       "让双肩、手腕、髋和脚踝进入画面",
+      gate.framingDirection,
     );
   }
 
@@ -477,7 +592,11 @@ function classifyLunge(frame: PoseFrame): FormClassification {
   const gate = visibleEnough(required, frame.visibleBounds);
 
   if (!gate.valid) {
-    return invalidClassification(gate.quality, "让髋、双膝和双脚踝进入画面");
+    return invalidClassification(
+      gate.quality,
+      "让髋、双膝和双脚踝进入画面",
+      gate.framingDirection,
+    );
   }
 
   const [leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle] =
@@ -536,7 +655,11 @@ function classifyLunge(frame: PoseFrame): FormClassification {
   };
 }
 
-function invalidClassification(quality: number, feedback: string): FormClassification {
+function invalidClassification(
+  quality: number,
+  feedback: string,
+  direction: FramingDirection | null = null,
+): FormClassification {
   return {
     valid: false,
     start: false,
@@ -545,6 +668,7 @@ function invalidClassification(quality: number, feedback: string): FormClassific
     metric: null,
     angleOverlays: [],
     feedback,
+    framingDirection: direction ?? undefined,
   };
 }
 
@@ -709,6 +833,7 @@ function result(
     metric: classification.metric,
     angleOverlays: classification.angleOverlays,
     requirementsMet: classification.valid,
+    framingDirection: classification.framingDirection ?? null,
   };
 }
 

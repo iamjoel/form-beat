@@ -5,7 +5,7 @@ import { SetupScreen } from "./components/SetupScreen";
 import { EXERCISES, type ExerciseId } from "./domain/exercises";
 import type { AvatarId } from "./domain/records";
 import type { CompletionStats } from "./domain/session";
-import { primeAudio, speakChinesePrompt } from "./lib/audio";
+import { primeAudio, primeSpeechSynthesis } from "./lib/audio";
 import type { CompletedRecording } from "./lib/session-recorder";
 import {
   saveWorkoutRecord,
@@ -79,7 +79,7 @@ export function App() {
 
   const handleStart = () => {
     // Must happen in the click event so iOS allows later sound and speech cues.
-    speakChinesePrompt("准备开始");
+    primeSpeechSynthesis();
     void primeAudio();
     saveTokenRef.current += 1;
     setStats(null);
