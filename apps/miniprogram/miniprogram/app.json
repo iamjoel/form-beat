@@ -1,0 +1,22 @@
+{
+  "pages": [
+    "pages/setup/index",
+    "pages/workout/index",
+    "pages/records/index",
+    "pages/completion/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#f7f7f2",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "运动计数",
+    "backgroundColor": "#f7f7f2",
+    "backgroundTextStyle": "dark"
+  },
+  "permission": {
+    "scope.camera": {
+      "desc": "用于在设备本机识别运动姿态并录制训练视频"
+    }
+  },
+  "sitemapLocation": "sitemap.json",
+  "style": "v2"
+}

@@ -7,7 +7,7 @@ licenses.
 ## MediaPipe Tasks Vision
 
 - Component: `@mediapipe/tasks-vision` 1.0.1, including the JavaScript and
-  WebAssembly runtime files copied into `public/wasm`
+  WebAssembly runtime files copied into `apps/web/public/wasm`
 - Copyright: The MediaPipe Authors
 - Source: <https://github.com/google-ai-edge/mediapipe>
 - Package: <https://www.npmjs.com/package/@mediapipe/tasks-vision>
@@ -16,8 +16,8 @@ licenses.
 
 ## MediaPipe Pose Landmarker models
 
-- Files: `public/models/pose_landmarker_lite.task` and
-  `public/models/pose_landmarker_full.task`
+- Files: `apps/web/public/models/pose_landmarker_lite.task` and
+  `apps/web/public/models/pose_landmarker_full.task`
 - Model authors: Valentin Bazarevsky, Ivan Grishchenko, and Eduard Gabriel
   Bazavan, Google
 - Lite model source:

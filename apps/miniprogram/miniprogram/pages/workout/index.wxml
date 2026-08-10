@@ -1,0 +1,56 @@
+<view class="workout-page">
+  <camera
+    class="camera"
+    device-position="front"
+    flash="off"
+    mode="normal"
+    resolution="high"
+    frame-size="medium"
+    bindinitdone="onCameraReady"
+    binderror="onCameraError"
+  ></camera>
+  <canvas class="camera-preview" type="2d" id="camera-preview"></canvas>
+  <canvas class="pose-canvas" type="2d" id="pose-overlay"></canvas>
+
+  <view class="topbar">
+    <button class="round-control" bindtap="stopWorkout" disabled="{{status === 'finishing'}}">×</button>
+    <view class="workout-title">
+      <text>{{exerciseLabel}}</text>
+      <text class="recording-state">{{recordingAvailable ? '原始画面录制中' : '本次不录屏'}}</text>
+    </view>
+    <button class="round-control pause-control" bindtap="togglePaused" disabled="{{status !== 'tracking'}}">
+      {{paused ? '▶' : 'Ⅱ'}}
+    </button>
+  </view>
+
+  <view class="tracking-message {{poseVisible ? 'tracking-message--ready' : ''}}">
+    <text class="tracking-dot"></text>
+    <text>{{feedback}}</text>
+  </view>
+
+  <view class="counter-card">
+    <view class="count-line">
+      <text class="count">{{count}}</text>
+      <text class="target">/ {{target}}</text>
+    </view>
+    <text class="elapsed">{{elapsedLabel}}</text>
+  </view>
+
+  <view wx:if="{{status === 'starting'}}" class="blocking-panel">
+    <view class="spinner"></view>
+    <text class="blocking-title">正在启动本机识别</text>
+    <text class="blocking-copy">首次使用请允许相机权限</text>
+  </view>
+
+  <view wx:if="{{status === 'finishing'}}" class="blocking-panel">
+    <view class="spinner"></view>
+    <text class="blocking-title">正在保存训练</text>
+  </view>
+
+  <view wx:if="{{status === 'error'}}" class="blocking-panel error-panel">
+    <text class="blocking-title">无法开始</text>
+    <text class="blocking-copy">{{error}}</text>
+    <button class="primary-button retry-button" bindtap="retry">重试</button>
+    <button class="back-button" bindtap="stopWorkout">返回</button>
+  </view>
+</view>

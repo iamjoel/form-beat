@@ -1,0 +1,19 @@
+{
+  "name": "@workout-detect/core",
+  "private": true,
+  "version": "0.2.0",
+  "exports": {
+    "./domain/exercises": "./src/domain/exercises.ts",
+    "./domain/session": "./src/domain/session.ts",
+    "./lib/geometry": "./src/lib/geometry.ts",
+    "./lib/rep-counter": "./src/lib/rep-counter.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

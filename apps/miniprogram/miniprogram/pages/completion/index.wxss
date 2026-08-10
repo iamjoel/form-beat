@@ -1,0 +1,88 @@
+.completion-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-sizing: border-box;
+  padding: calc(100rpx + env(safe-area-inset-top)) 36rpx calc(44rpx + env(safe-area-inset-bottom));
+  background: #171813;
+  color: #f8f7f0;
+  text-align: center;
+}
+
+.success-ring {
+  width: 150rpx;
+  height: 150rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 36rpx;
+  border: 5rpx solid #c7fa38;
+  border-radius: 50%;
+  color: #c7fa38;
+  font-size: 72rpx;
+  box-shadow: 0 0 70rpx rgba(199, 250, 56, 0.18);
+}
+
+.eyebrow {
+  color: #c7fa38;
+}
+
+.title {
+  margin-top: 16rpx;
+  font-size: 54rpx;
+  font-weight: 880;
+  letter-spacing: -0.05em;
+}
+
+.stats-card {
+  width: 100%;
+  display: flex;
+  align-items: stretch;
+  margin-top: 68rpx;
+  padding: 34rpx 0;
+  border-radius: 32rpx;
+  background: #24251f;
+}
+
+.stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+
+.stat-value {
+  font-size: 42rpx;
+  font-weight: 850;
+}
+
+.stat-label,
+.saved-note {
+  color: #9c9e95;
+  font-size: 22rpx;
+}
+
+.divider {
+  width: 1rpx;
+  background: #41433b;
+}
+
+.saved-note {
+  margin-top: 26rpx;
+}
+
+.completion-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+  margin-top: auto;
+}
+
+.records-button {
+  height: 88rpx;
+  background: transparent;
+  color: #d0d1ca;
+  font-size: 25rpx;
+}

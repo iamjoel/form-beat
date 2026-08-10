@@ -1,0 +1,206 @@
+page {
+  overflow: hidden;
+  background: #0d0e0b;
+}
+
+.workout-page,
+.camera,
+.camera-preview,
+.pose-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+}
+
+.camera {
+  z-index: 1;
+}
+
+.camera-preview,
+.pose-canvas {
+  z-index: 2;
+  pointer-events: none;
+}
+
+.pose-canvas {
+  z-index: 3;
+}
+
+.topbar {
+  position: absolute;
+  z-index: 4;
+  top: calc(18rpx + env(safe-area-inset-top));
+  left: 24rpx;
+  right: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.round-control {
+  width: 84rpx;
+  height: 84rpx;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(19, 20, 16, 0.76);
+  color: #fff;
+  font-size: 46rpx;
+  line-height: 80rpx;
+  backdrop-filter: blur(18rpx);
+}
+
+.pause-control {
+  font-size: 26rpx;
+}
+
+.workout-title {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4rpx;
+  color: #fff;
+  font-size: 30rpx;
+  font-weight: 800;
+  text-shadow: 0 2rpx 10rpx rgba(0, 0, 0, 0.36);
+}
+
+.recording-state {
+  color: rgba(255, 255, 255, 0.66);
+  font-size: 18rpx;
+  font-weight: 500;
+}
+
+.tracking-message {
+  position: absolute;
+  z-index: 4;
+  top: calc(132rpx + env(safe-area-inset-top));
+  left: 50%;
+  max-width: 72vw;
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  box-sizing: border-box;
+  padding: 18rpx 24rpx;
+  border-radius: 999rpx;
+  transform: translateX(-50%);
+  background: rgba(20, 21, 17, 0.78);
+  color: #fff;
+  font-size: 23rpx;
+  line-height: 1.35;
+  text-align: center;
+  backdrop-filter: blur(16rpx);
+}
+
+.tracking-dot {
+  width: 14rpx;
+  height: 14rpx;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #f0bb4c;
+}
+
+.tracking-message--ready .tracking-dot {
+  background: #c7fa38;
+  box-shadow: 0 0 20rpx rgba(199, 250, 56, 0.8);
+}
+
+.counter-card {
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  bottom: calc(48rpx + env(safe-area-inset-bottom));
+  min-width: 300rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 26rpx;
+  box-sizing: border-box;
+  padding: 24rpx 30rpx;
+  border-radius: 36rpx;
+  transform: translateX(-50%);
+  background: rgba(19, 20, 16, 0.84);
+  color: #fff;
+  backdrop-filter: blur(18rpx);
+}
+
+.count-line {
+  display: flex;
+  align-items: baseline;
+}
+
+.count {
+  font-size: 82rpx;
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.07em;
+}
+
+.target {
+  margin-left: 12rpx;
+  color: #c7fa38;
+  font-size: 26rpx;
+  font-weight: 800;
+}
+
+.elapsed {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 24rpx;
+  font-variant-numeric: tabular-nums;
+}
+
+.blocking-panel {
+  position: absolute;
+  z-index: 8;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18rpx;
+  padding: 54rpx;
+  background: rgba(13, 14, 11, 0.88);
+  color: #fff;
+  text-align: center;
+}
+
+.spinner {
+  width: 52rpx;
+  height: 52rpx;
+  margin-bottom: 12rpx;
+  border: 6rpx solid rgba(255, 255, 255, 0.2);
+  border-top-color: #c7fa38;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.blocking-title {
+  font-size: 36rpx;
+  font-weight: 850;
+}
+
+.blocking-copy {
+  max-width: 560rpx;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 25rpx;
+  line-height: 1.55;
+}
+
+.retry-button {
+  width: 360rpx;
+  margin-top: 32rpx;
+}
+
+.back-button {
+  margin-top: 8rpx;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 25rpx;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

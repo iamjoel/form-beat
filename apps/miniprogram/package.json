@@ -1,0 +1,11 @@
+{
+  "name": "@workout-detect/miniprogram",
+  "private": true,
+  "version": "0.2.0",
+  "scripts": {
+    "check": "node scripts/check-project.mjs && tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
+}

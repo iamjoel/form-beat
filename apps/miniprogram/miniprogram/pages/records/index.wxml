@@ -1,0 +1,48 @@
+<view class="safe-page records-page">
+  <view class="records-heading">
+    <text class="eyebrow">LOCAL RECORDS</text>
+    <text class="title">训练记录</text>
+    <text class="subtitle">录像只保存在当前微信设备中，可导出到系统相册。</text>
+  </view>
+
+  <view wx:if="{{records.length === 0}}" class="empty-state">
+    <text class="empty-mark">○</text>
+    <text class="empty-title">还没有记录</text>
+    <text class="empty-copy">有效训练满 10 秒或完成目标后会保存在这里。</text>
+    <button class="primary-button empty-button" bindtap="startWorkout">开始训练</button>
+  </view>
+
+  <view wx:else class="record-list">
+    <view wx:for="{{records}}" wx:key="id" class="record-card">
+      <view class="record-header">
+        <view>
+          <text class="record-title">{{item.exerciseLabel}}</text>
+          <text class="record-date">{{item.dateLabel}}</text>
+        </view>
+        <text class="record-count">{{item.completedReps}} / {{item.targetReps}}</text>
+      </view>
+
+      <video
+        class="record-video"
+        src="{{item.videoPath}}"
+        controls
+        object-fit="cover"
+        show-center-play-btn
+        show-fullscreen-btn
+      ></video>
+
+      <view class="record-footer">
+        <text class="record-duration">用时 {{item.durationLabel}}</text>
+        <view class="record-actions">
+          <button class="record-action" data-id="{{item.id}}" bindtap="saveVideo">存相册</button>
+          <button
+            class="record-action record-delete"
+            data-id="{{item.id}}"
+            bindtap="requestDelete"
+            loading="{{deletingId === item.id}}"
+          >删除</button>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

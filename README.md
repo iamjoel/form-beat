@@ -1,74 +1,69 @@
-![运动计数](public/og.png)
+# Workout Detect
 
-一个只面向手机的实时运动计数 Web App。用户选择动作、设置目标次数并允许相机后，应用会在设备本机运行 MediaPipe Pose Landmarker，把 33 个身体关键点绘制在镜像画面上，用动作状态机确认每一次完整动作，并通过声音和振动反馈计数。
+一个在设备本机识别健身动作并自动计数的项目，当前同时支持移动 Web 和微信小程序。两端共用动作定义、几何计算、训练记录规则和计数状态机，摄像头、姿态识别、画面绘制与录像则由各平台分别实现。
 
-## 已支持
+## 项目结构
 
-- 深蹲：膝角、髋角与髋部下降
-- 俯卧撑：肘角、身体直线与身体朝向
-- 开合跳：双臂角度与脚踝间距
-- 弓步蹲：双膝角度与前后步幅
-- 可选无头像、男性或女性 Emoji 录屏头像
-- 训练满 10 秒或达到目标后，录屏仅保存在浏览器本机，并可在记录页播放、导出和删除
-- 首页 / 记录双页导航，记录按完成时间倒序展示
-- Lite / Full 模型自动选择、GPU 推理与 CPU 降级
-- 相机权限、无相机、相机占用和识别器加载错误提示
-- 暂停、声音开关、训练计时、目标完成页
-- 手机安全区、移动横竖屏、高对比度与减少动态效果
+```text
+apps/
+  web/           React + Vite + MediaPipe Web 应用
+  miniprogram/   微信原生小程序 + VisionKit
+packages/
+  core/          与平台无关的动作计数核心
+```
 
-## 技术栈
+- Web 端继续使用 MediaPipe 的 33 个关键点，并通过 Web Worker 执行逐帧推理。
+- 小程序使用微信 VisionKit 的 23 点人体识别结果，由适配层转换为计数核心需要的关键点布局。
+- 小程序训练页会实时显示 Canvas 骨架，但录像直接来自 `CameraContext`，因此只包含原始相机画面，不包含骨架、计数 UI 或麦克风声音。
 
-- React 19.2
-- TypeScript 7
-- Vite 8
-- `@mediapipe/tasks-vision` 1.0.1
-- Vitest 4
+## 本地开发
 
-逐帧推理不进入 React state。主线程通过 `requestVideoFrameCallback` 获取视频帧，使用 transferable `ImageBitmap` 发送给 module Web Worker；Worker 中同步调用 `detectForVideo()`，结果返回后主线程才发送下一帧，以避免积压。Canvas 直接绘制骨架，React 只更新次数、阶段和提示文案。
-
-训练开始后，应用会把镜像相机画面、骨架和可选 Emoji 头像合成到独立 Canvas，并用浏览器原生 `MediaRecorder` 录制。输出最高为 720p、30 fps；运行时优先选择 MP4/H.264，无法使用时回退 WebM。达到目标或有效训练满 10 秒后主动结束时，视频 Blob 与记录元数据会原子写入 IndexedDB，不会进行 Base64 转换；提前结束保存后直接返回首页，只有达到目标才显示完成页。删除记录时元数据和视频也会在同一事务中删除。
-
-## 本地运行
-
-要求 Node.js `^20.19.0` 或 `>=22.12.0`，使用 pnpm：
+要求 Node.js `^20.19.0` 或 `>=22.12.0`，包管理器使用 pnpm。
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-打开 `http://127.0.0.1:5173`。浏览器摄像头只允许在 HTTPS 或 localhost 安全上下文中使用。真机调试时请使用受信任的 HTTPS 地址，不能直接用局域网 HTTP IP。
-
-其他命令：
+常用命令：
 
 ```bash
-pnpm test
-pnpm build
-pnpm preview
+pnpm test        # 运行共享核心与 Web 测试
+pnpm build       # 构建 Web，并生成小程序使用的共享核心
+pnpm mini:check  # 同步共享核心并检查小程序 TypeScript
+pnpm preview     # 预览 Web 构建产物
 ```
 
-安装和构建前会把 MediaPipe WASM 资源复制到 `public/wasm`。模型固定在 `public/models`，运行时不依赖 `@latest` CDN。
+Web 端详情见 [`apps/web/README.md`](apps/web/README.md)。
 
-## 模型来源
+## 微信小程序
 
-- [Pose Landmarker Lite](https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task)
-- [Pose Landmarker Full](https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task)
-- [Google Pose Landmarker Web 指南](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/web_js)
-- [官方 TypeScript / Vite / Worker 示例](https://github.com/google-ai-edge/mediapipe-samples-web)
+首次导入微信开发者工具前执行：
 
-MediaPipe 与模型使用 Apache-2.0 许可；参见 [BlazePose GHUM 3D 模型卡](https://storage.googleapis.com/mediapipe-assets/Model%20Card%20BlazePose%20GHUM%203D.pdf)。
+```bash
+pnpm mini:prepare
+```
 
-## 许可证
+然后在微信开发者工具中导入 `apps/miniprogram`。当前 [`project.config.json`](apps/miniprogram/project.config.json) 使用 `touristappid`，联调、真机预览和发布前需要替换为实际小程序 AppID。共享核心生成在 `apps/miniprogram/miniprogram/shared/core`，不要直接编辑该目录；修改 `packages/core/src` 后重新运行 `pnpm mini:prepare`。
 
-除另有说明外，本项目的原创源代码采用 [MIT License](LICENSE) 授权。
-MediaPipe SDK、随应用分发的 WASM 运行时、Pose Landmarker 模型以及引用的
-Google Developers 示例代码仍采用 Apache License 2.0。完整的第三方来源、
-署名和许可证信息参见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+小程序支持：
+
+- 深蹲、俯卧撑、开合跳和弓步蹲实时计数
+- 前置相机、VisionKit 本机人体识别和 Canvas 骨架提示
+- 暂停、训练计时、振动反馈和目标完成页
+- 原始相机录像本机保存、播放、导出到相册和删除
+- 达到目标时保存录像；未达到目标时仅训练满 10 秒才保存
+
+VisionKit、相机帧与原生录像能力需要在 iOS 和 Android 真机上分别验证。开发者工具可以检查页面和类型，但不能替代真机姿态识别、镜像方向、Canvas 覆盖层与录像并行能力测试。
+
+更具体的导入和验收步骤见 [`apps/miniprogram/README.md`](apps/miniprogram/README.md)。
 
 ## 隐私与限制
 
-摄像头画面在当前设备内进行推理，本应用不会把图像帧上传到自己的服务器或 Google。MediaPipe Tasks 的官方包说明 SDK 可能发送 API 性能与使用指标；正式发布前应根据适用地区完成 telemetry 告知、同意与隐私合规评估。
+两端均在当前设备内处理姿态，不会把相机帧上传到项目服务器。训练录像只保存在当前设备；用户清理站点/小程序数据或系统回收存储时可能丢失，需要长期保留时应主动导出。
 
-录屏属于浏览器站点数据，可能在用户清理浏览器数据、系统回收存储空间或无痕模式结束后消失；需要长期保存时应从记录页导出。当前录屏不包含麦克风，也不会把计数提示音写进视频。
+单摄像头姿态估计会受弱光、运动模糊、遮挡、服装和拍摄角度影响。当前规则用于健身动作计数，不是医疗级测量，上线前仍需用目标机型和真实训练样本校准阈值。
 
-单摄像头姿态估计会受弱光、运动模糊、遮挡、服装和拍摄角度影响。当前阈值适合健身动作计数，不是医疗级姿态测量，也不应把深度坐标解释为精确距离。上线前应使用目标设备和真实训练样本继续校准各动作阈值。
+## 许可证
+
+原创源代码采用 [MIT License](LICENSE)。MediaPipe SDK、WASM、Pose Landmarker 模型和引用的 Google 示例仍遵循 Apache License 2.0，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

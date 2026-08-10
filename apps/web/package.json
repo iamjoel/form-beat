@@ -1,0 +1,36 @@
+{
+  "name": "@workout-detect/web",
+  "private": true,
+  "version": "0.1.0",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "prepare:wasm": "node scripts/copy-mediapipe-wasm.mjs",
+    "postinstall": "pnpm prepare:wasm",
+    "predev": "pnpm prepare:wasm",
+    "dev": "vite",
+    "prebuild": "node scripts/clean-dist.mjs && pnpm prepare:wasm",
+    "build": "tsc -b && vite build && vite build --config vite.worker.config.ts",
+    "preview": "vite preview",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@workout-detect/core": "workspace:*",
+    "@mediapipe/tasks-vision": "^1.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.1",
+    "vitest": "^4.1.10"
+  },
+  "packageManager": "pnpm@11.15.0"
+}
