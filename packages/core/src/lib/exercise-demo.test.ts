@@ -17,6 +17,13 @@ const EXPECTED_ANGLE_VERTICES: Record<ExerciseId, readonly number[]> = {
   lunge: [25, 26],
 };
 
+const EXPECTED_END_ANGLES: Record<ExerciseId, readonly number[]> = {
+  squat: [90],
+  "push-up": [90, 180],
+  "jumping-jack": [150, 150],
+  lunge: [90, 90],
+};
+
 describe("exercise demo frames", () => {
   it.each(Object.entries(EXPECTED_ANGLE_VERTICES))(
     "uses the live angle overlays for %s",
@@ -53,6 +60,17 @@ describe("exercise demo frames", () => {
       pointIndices: [11, 13, 15, 23, 27],
     });
   });
+
+  it.each(Object.entries(EXPECTED_END_ANGLES))(
+    "shows the recommended end-position angles for %s",
+    (exerciseId, expectedAngles) => {
+      const frame = getExerciseDemoFrame(exerciseId as ExerciseId, 0.5);
+
+      expect(frame.angleOverlays.map((overlay) => overlay.degrees)).toEqual(
+        expectedAngles,
+      );
+    },
+  );
 
   it("provides synchronized sprite crops and keyframe timing", () => {
     expect(Object.keys(EXERCISE_DEMO_SPRITE_CROPS)).toEqual(

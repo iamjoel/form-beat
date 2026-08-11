@@ -16,6 +16,29 @@ packages/
 - 小程序使用微信 VisionKit 的 23 点人体识别结果，由适配层转换为计数核心需要的关键点布局。
 - 小程序训练页会实时显示 Canvas 骨架，但录像直接来自 `CameraContext`，因此只包含原始相机画面，不包含骨架、计数 UI 或麦克风声音。
 
+## 动作演示
+
+演示只标出动作中需要注意的关键点和角度，与 Web 和小程序使用同一份动作数据。
+
+<table>
+  <tr>
+    <th>深蹲</th>
+    <th>俯卧撑</th>
+  </tr>
+  <tr>
+    <td><img src="docs/assets/exercise-demos/squat.gif" alt="哈士奇深蹲动作演示，膝关节目标角度为 90 度" width="360"></td>
+    <td><img src="docs/assets/exercise-demos/push-up.gif" alt="哈士奇俯卧撑动作演示，肘关节目标角度为 90 度" width="360"></td>
+  </tr>
+  <tr>
+    <th>开合跳</th>
+    <th>弓步蹲</th>
+  </tr>
+  <tr>
+    <td><img src="docs/assets/exercise-demos/jumping-jack.gif" alt="哈士奇开合跳动作演示，肩关节目标角度为 150 度" width="360"></td>
+    <td><img src="docs/assets/exercise-demos/lunge.gif" alt="哈士奇弓步蹲动作演示，双膝目标角度为 90 度" width="360"></td>
+  </tr>
+</table>
+
 ## 本地开发
 
 要求 Node.js `^20.19.0` 或 `>=22.12.0`，包管理器使用 pnpm。
