@@ -17,16 +17,22 @@ const WorkoutScreen = lazy(() =>
     default: module.WorkoutScreen,
   })),
 );
+const ExerciseDemoScreen = lazy(() =>
+  import("./components/ExerciseDemoScreen").then((module) => ({
+    default: module.ExerciseDemoScreen,
+  })),
+);
 const RecordsScreen = lazy(() =>
   import("./components/RecordsScreen").then((module) => ({
     default: module.RecordsScreen,
   })),
 );
 
-type AppView = "setup" | "records" | "workout" | "complete";
+type AppView = "setup" | "demo" | "records" | "workout" | "complete";
 
 const initialExercise = EXERCISES[0];
 const AVATAR_STORAGE_KEY = "workout-detect:recording-avatar:v1";
+const DEMO_DISMISSED_STORAGE_KEY = "workout-detect:exercise-demo-dismissed:v1";
 const showCompletionPreview =
   import.meta.env.DEV && new URLSearchParams(window.location.search).get("preview") === "complete";
 const previewStats: CompletionStats = {
@@ -54,6 +60,14 @@ function recordingErrorMessage(error: unknown): string {
   return "录屏保存失败";
 }
 
+function isDemoDismissed(): boolean {
+  try {
+    return window.localStorage.getItem(DEMO_DISMISSED_STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
 export function App() {
   const [view, setView] = useState<AppView>(showCompletionPreview ? "complete" : "setup");
   const [exerciseId, setExerciseId] = useState<ExerciseId>(initialExercise.id);
@@ -77,7 +91,7 @@ export function App() {
     }
   };
 
-  const handleStart = () => {
+  const beginWorkout = () => {
     // Must happen in the click event so iOS allows later sound and speech cues.
     primeSpeechSynthesis();
     void primeAudio();
@@ -86,6 +100,25 @@ export function App() {
     setRecordingNotice("");
     setRecordingSaving(false);
     setView("workout");
+  };
+
+  const handleStart = () => {
+    if (isDemoDismissed()) {
+      beginWorkout();
+      return;
+    }
+    setView("demo");
+  };
+
+  const handleDemoStart = (skipNextTime: boolean) => {
+    if (skipNextTime) {
+      try {
+        window.localStorage.setItem(DEMO_DISMISSED_STORAGE_KEY, "true");
+      } catch {
+        // The demo still closes when persistence is unavailable.
+      }
+    }
+    beginWorkout();
   };
 
   const handleAvatarChange = (nextAvatar: AvatarId) => {
@@ -155,6 +188,18 @@ export function App() {
     );
   }
 
+  if (view === "demo") {
+    return (
+      <Suspense fallback={<DemoLoading />}>
+        <ExerciseDemoScreen
+          exerciseId={exerciseId}
+          onBack={() => setView("setup")}
+          onStart={handleDemoStart}
+        />
+      </Suspense>
+    );
+  }
+
   if (view === "complete" && stats) {
     return (
       <CompletionScreen
@@ -204,6 +249,15 @@ function RecordsLoading() {
     <main className="route-loading route-loading--light" aria-live="polite" aria-busy="true">
       <span className="loading-spinner" aria-hidden="true" />
       <p>正在读取记录</p>
+    </main>
+  );
+}
+
+function DemoLoading() {
+  return (
+    <main className="route-loading route-loading--light" aria-live="polite" aria-busy="true">
+      <span className="loading-spinner" aria-hidden="true" />
+      <p>正在准备动作演示</p>
     </main>
   );
 }

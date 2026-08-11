@@ -1,5 +1,6 @@
 import type { PosePoint } from "../shared/core/lib/geometry";
 import type { PoseAngleOverlay } from "../shared/core/lib/rep-counter";
+import { POSE_CONNECTIONS } from "../shared/core/lib/exercise-demo";
 
 export interface RenderSize {
   width: number;
@@ -12,29 +13,6 @@ export interface CoverLayout {
   offsetX: number;
   offsetY: number;
 }
-
-const CONNECTIONS: readonly [number, number][] = [
-  [0, 11],
-  [0, 12],
-  [11, 12],
-  [11, 13],
-  [13, 15],
-  [12, 14],
-  [14, 16],
-  [11, 23],
-  [12, 24],
-  [23, 24],
-  [23, 25],
-  [25, 27],
-  [27, 29],
-  [29, 31],
-  [27, 31],
-  [24, 26],
-  [26, 28],
-  [28, 30],
-  [30, 32],
-  [28, 32],
-];
 
 function visible(point: PosePoint | undefined): point is PosePoint {
   return Boolean(
@@ -97,7 +75,7 @@ export function drawPose(
   context.lineCap = "round";
   context.lineJoin = "round";
 
-  for (const [startIndex, endIndex] of CONNECTIONS) {
+  for (const [startIndex, endIndex] of POSE_CONNECTIONS) {
     const start = landmarks[startIndex];
     const end = landmarks[endIndex];
     if (!visible(start) || !visible(end)) continue;

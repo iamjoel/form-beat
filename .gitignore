@@ -8,3 +8,4 @@ dist/
 .env.*
 !.env.example
 apps/miniprogram/miniprogram/shared/core/
+apps/miniprogram/miniprogram/assets/generated/

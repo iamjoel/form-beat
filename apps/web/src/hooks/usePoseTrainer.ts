@@ -20,6 +20,7 @@ import {
   type NormalizedBounds,
   type PosePoint,
 } from "@workout-detect/core/lib/geometry";
+import { POSE_CONNECTIONS } from "@workout-detect/core/lib/exercise-demo";
 import {
   cancelSpeechPrompt,
   playCompletionCue,
@@ -105,29 +106,6 @@ const FRAMING_SPEECH: Record<FramingDirection, SpokenDirection> = {
   left: "向左",
   right: "向右",
 };
-
-const CONNECTIONS: readonly [number, number][] = [
-  [0, 11],
-  [0, 12],
-  [11, 12],
-  [11, 13],
-  [13, 15],
-  [12, 14],
-  [14, 16],
-  [11, 23],
-  [12, 24],
-  [23, 24],
-  [23, 25],
-  [25, 27],
-  [27, 29],
-  [29, 31],
-  [27, 31],
-  [24, 26],
-  [26, 28],
-  [28, 30],
-  [30, 32],
-  [28, 32],
-];
 
 function chooseModelVariant(): "Lite" | "Full" {
   const deviceMemory = (navigator as Navigator & { deviceMemory?: number })
@@ -302,7 +280,7 @@ function drawPose(
   const drawConnections = (strokeStyle: string, lineWidth: number) => {
     context.strokeStyle = strokeStyle;
     context.lineWidth = lineWidth;
-    for (const [startIndex, endIndex] of CONNECTIONS) {
+    for (const [startIndex, endIndex] of POSE_CONNECTIONS) {
       const start = landmarks[startIndex];
       const end = landmarks[endIndex];
       if (!start || !end) continue;

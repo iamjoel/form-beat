@@ -141,9 +141,6 @@ export function SetupScreen({
           </div>
         </section>
 
-        <p className="setup-hint">
-          开始后允许相机，录屏仅存本机。{selectedExercise.cameraHint}
-        </p>
       </div>
 
       <footer className="setup-footer">

@@ -2,8 +2,20 @@ import {
   EXERCISES,
   type ExerciseId,
 } from "../../shared/core/domain/exercises";
+import {
+  getExerciseDemoFrame,
+  getExerciseDemoKeyframe,
+} from "../../shared/core/lib/exercise-demo";
+import {
+  drawExerciseDemo,
+  type DemoRenderSize,
+  type DemoSpriteImage,
+} from "../../lib/exercise-demo-renderer";
 
 const PREFERENCES_KEY = "workout-detect:preferences:v1";
+const DEMO_DISMISSED_STORAGE_KEY = "workout-detect:exercise-demo-dismissed:v1";
+const DEMO_SPRITE_PATH = "/assets/generated/husky-exercise-sprites-v2.png";
+const DEMO_DURATION_MS = 2_800;
 const MIN_TARGET = 1;
 const MAX_TARGET = 99;
 
@@ -15,10 +27,23 @@ interface Preferences {
 interface SetupPageInstance {
   data: Preferences & {
     exercises: typeof EXERCISES;
-    cameraHint: string;
     exerciseLabel: string;
+    showDemo: boolean;
+    skipDemo: boolean;
   };
-  setData(data: Partial<SetupPageInstance["data"]>): void;
+  setData(
+    data: Partial<SetupPageInstance["data"]>,
+    callback?: () => void,
+  ): void;
+  demoCanvasNode?: CanvasNodeResult["node"];
+  demoCanvasContext?: CanvasRenderingContext2D;
+  demoCanvasSize?: DemoRenderSize;
+  demoSprite?: DemoSpriteImage;
+  demoAnimationTimer?: ReturnType<typeof setInterval>;
+  demoAnimationStartedAt?: number;
+  startDemoAnimation(): void;
+  stopDemoAnimation(): void;
+  navigateToWorkout(): void;
 }
 
 function readPreferences(): Preferences {
@@ -42,7 +67,6 @@ function getExerciseCopy(exerciseId: ExerciseId) {
   const exercise =
     EXERCISES.find((item) => item.id === exerciseId) ?? EXERCISES[0];
   return {
-    cameraHint: exercise.cameraHint,
     exerciseLabel: exercise.label,
   };
 }
@@ -54,14 +78,33 @@ Page({
     exercises: EXERCISES,
     ...initialPreferences,
     ...getExerciseCopy(initialPreferences.exerciseId),
+    showDemo: false,
+    skipDemo: false,
   },
 
   onShow(this: SetupPageInstance) {
     const preferences = readPreferences();
+    this.stopDemoAnimation();
     this.setData({
       ...preferences,
       ...getExerciseCopy(preferences.exerciseId),
+      showDemo: false,
+      skipDemo: false,
     });
+  },
+
+  onHide(this: SetupPageInstance) {
+    this.stopDemoAnimation();
+  },
+
+  onUnload(this: SetupPageInstance) {
+    this.stopDemoAnimation();
+  },
+
+  onResize(this: SetupPageInstance) {
+    if (!this.data.showDemo) return;
+    this.stopDemoAnimation();
+    setTimeout(() => this.startDemoAnimation(), 0);
   },
 
   selectExercise(this: SetupPageInstance, event: MiniProgramEvent) {
@@ -93,6 +136,102 @@ Page({
       exerciseId: this.data.exerciseId,
       target: this.data.target,
     });
+    if (wx.getStorageSync(DEMO_DISMISSED_STORAGE_KEY) === true) {
+      this.navigateToWorkout();
+      return;
+    }
+    this.setData({ showDemo: true, skipDemo: false }, () => {
+      this.startDemoAnimation();
+    });
+  },
+
+  startDemoAnimation(this: SetupPageInstance) {
+    this.stopDemoAnimation();
+    const query = wx.createSelectorQuery();
+    query.select("#exercise-demo-canvas").fields({ node: true, size: true });
+    query.exec((results) => {
+      const result = results[0];
+      if (!this.data.showDemo || !result?.node || !result.width || !result.height) {
+        return;
+      }
+      const pixelRatio = Math.min(2, wx.getSystemInfoSync().pixelRatio || 1);
+      result.node.width = Math.round(result.width * pixelRatio);
+      result.node.height = Math.round(result.height * pixelRatio);
+      const context = result.node.getContext("2d");
+      context.scale(pixelRatio, pixelRatio);
+      this.demoCanvasNode = result.node;
+      this.demoCanvasContext = context;
+      this.demoCanvasSize = { width: result.width, height: result.height };
+      this.demoAnimationStartedAt = Date.now();
+
+      const render = () => {
+        if (!this.data.showDemo || !this.demoCanvasContext || !this.demoCanvasSize) {
+          return;
+        }
+        const progress =
+          (Date.now() - (this.demoAnimationStartedAt ?? Date.now())) /
+          DEMO_DURATION_MS;
+        const keyframe = getExerciseDemoKeyframe(progress);
+        drawExerciseDemo(
+          this.demoCanvasContext,
+          getExerciseDemoFrame(
+            this.data.exerciseId,
+            keyframe === 0 ? 0 : 0.5,
+          ),
+          this.demoCanvasSize,
+          this.demoSprite ?? null,
+          this.data.exerciseId,
+          keyframe,
+        );
+      };
+
+      let started = false;
+      const startRendering = () => {
+        if (started || !this.data.showDemo) return;
+        started = true;
+        render();
+        this.demoAnimationTimer = setInterval(render, 33);
+      };
+      const sprite = result.node.createImage() as DemoSpriteImage;
+      sprite.onload = () => {
+        this.demoSprite = sprite;
+        startRendering();
+      };
+      sprite.onerror = startRendering;
+      sprite.src = DEMO_SPRITE_PATH;
+    });
+  },
+
+  stopDemoAnimation(this: SetupPageInstance) {
+    if (this.demoAnimationTimer) clearInterval(this.demoAnimationTimer);
+    this.demoAnimationTimer = undefined;
+    this.demoCanvasNode = undefined;
+    this.demoCanvasContext = undefined;
+    this.demoCanvasSize = undefined;
+    this.demoSprite = undefined;
+  },
+
+  changeDemoPreference(
+    this: SetupPageInstance,
+    event: MiniProgramEvent<{ value: string[] }>,
+  ) {
+    this.setData({ skipDemo: event.detail.value.includes("skip") });
+  },
+
+  closeDemo(this: SetupPageInstance) {
+    this.stopDemoAnimation();
+    this.setData({ showDemo: false, skipDemo: false });
+  },
+
+  continueWorkout(this: SetupPageInstance) {
+    if (this.data.skipDemo) {
+      wx.setStorageSync(DEMO_DISMISSED_STORAGE_KEY, true);
+    }
+    this.stopDemoAnimation();
+    this.navigateToWorkout();
+  },
+
+  navigateToWorkout(this: SetupPageInstance) {
     wx.navigateTo({
       url: `/pages/workout/index?exercise=${this.data.exerciseId}&target=${this.data.target}`,
     });

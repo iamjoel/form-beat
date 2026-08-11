@@ -9,10 +9,19 @@ const targetRoot = resolve(
   repositoryRoot,
   "apps/miniprogram/miniprogram/shared/core",
 );
+const sourceAsset = resolve(
+  repositoryRoot,
+  "packages/core/assets/husky-exercise-sprites-v2.png",
+);
+const targetAsset = resolve(
+  repositoryRoot,
+  "apps/miniprogram/miniprogram/assets/generated/husky-exercise-sprites-v2.png",
+);
 
 const modules = [
   "domain/exercises",
   "domain/session",
+  "lib/exercise-demo",
   "lib/geometry",
   "lib/rep-counter",
 ];
@@ -28,5 +37,8 @@ for (const modulePath of modules) {
     );
   }
 }
+
+await mkdir(dirname(targetAsset), { recursive: true });
+await copyFile(sourceAsset, targetAsset);
 
 console.log(`Synced shared core to ${targetRoot}`);

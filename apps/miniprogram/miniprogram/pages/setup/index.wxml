@@ -38,9 +38,6 @@
       </view>
     </view>
 
-    <view class="setup-hint">
-      <text>开始后允许相机，录像仅存本机。{{cameraHint}}</text>
-    </view>
   </view>
 
   <view class="setup-footer">
@@ -64,6 +61,39 @@
         <view class="nav-icon nav-icon--records"></view>
         <text>记录</text>
       </button>
+    </view>
+  </view>
+
+  <view wx:if="{{showDemo}}" class="demo-screen">
+    <view class="demo-header">
+      <button class="demo-back" aria-label="返回训练设置" bindtap="closeDemo">‹</button>
+      <view class="demo-heading">
+        <text class="demo-eyebrow">动作演示</text>
+        <text class="demo-title">{{exerciseLabel}}</text>
+      </view>
+      <view class="demo-header-spacer"></view>
+    </view>
+
+    <view class="demo-content">
+      <view class="demo-canvas-frame">
+        <canvas
+          id="exercise-demo-canvas"
+          class="demo-canvas"
+          type="2d"
+          aria-label="哈士奇正在演示{{exerciseLabel}}，画面标有训练时使用的骨骼点和关键角度"
+        ></canvas>
+      </view>
+
+      <checkbox-group class="demo-preference" bindchange="changeDemoPreference">
+        <label class="demo-skip">
+          <checkbox value="skip" checked="{{skipDemo}}" color="#171813"></checkbox>
+          <text>不再提示</text>
+        </label>
+      </checkbox-group>
+    </view>
+
+    <view class="demo-footer">
+      <button class="demo-start" bindtap="continueWorkout">开始训练</button>
     </view>
   </view>
 </view>

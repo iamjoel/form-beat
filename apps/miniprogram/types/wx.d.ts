@@ -72,6 +72,7 @@ interface CanvasNodeResult {
   node: {
     width: number;
     height: number;
+    createImage(): HTMLImageElement;
     getContext(type: "2d"): CanvasRenderingContext2D;
   };
   width: number;
