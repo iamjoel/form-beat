@@ -4,13 +4,15 @@
   "version": "0.2.0",
   "license": "MIT",
   "engines": {
-    "node": "^20.19.0 || >=22.12.0"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "dev": "pnpm --filter @workout-detect/web dev",
-    "build": "pnpm --filter @workout-detect/core build && pnpm --filter @workout-detect/web build && node apps/miniprogram/scripts/sync-core.mjs",
+    "admin:dev": "pnpm --filter @workout-detect/admin dev",
+    "admin:build": "pnpm --filter @workout-detect/core build && pnpm --filter @workout-detect/admin build",
+    "build": "pnpm --filter @workout-detect/core build && pnpm --filter @workout-detect/web build && pnpm --filter @workout-detect/admin build && node apps/miniprogram/scripts/sync-core.mjs",
     "preview": "pnpm --filter @workout-detect/web preview",
-    "test": "pnpm --filter @workout-detect/core test && pnpm --filter @workout-detect/web test",
+    "test": "pnpm --filter @workout-detect/core test && pnpm --filter @workout-detect/web test && pnpm --filter @workout-detect/admin test",
     "mini:prepare": "pnpm --filter @workout-detect/core build && node apps/miniprogram/scripts/sync-core.mjs",
     "mini:check": "pnpm mini:prepare && pnpm --filter @workout-detect/miniprogram check"
   },

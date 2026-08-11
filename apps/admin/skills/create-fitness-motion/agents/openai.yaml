@@ -1,0 +1,5 @@
+interface:
+  display_name: "创建健身动作数据"
+  short_description: "在 Form Beat Admin 中创建可编辑的健身动作数据"
+  brand_color: "#C8EF3F"
+  default_prompt: "Use $create-fitness-motion to create a new fitness motion record in Form Beat Admin."

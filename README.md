@@ -6,6 +6,7 @@
 
 ```text
 apps/
+  admin/         React + Vite + SQLite 动作数据后台与骨骼编辑器
   web/           React + Vite + MediaPipe Web 应用
   miniprogram/   微信原生小程序 + VisionKit
 packages/
@@ -41,7 +42,7 @@ packages/
 
 ## 本地开发
 
-要求 Node.js `^20.19.0` 或 `>=22.12.0`，包管理器使用 pnpm。
+要求 Node.js `>=22.12.0`，包管理器使用 pnpm。Admin 使用 Node 内置 SQLite，因此仓库开发环境统一以 Node 22.12+ 为准。
 
 ```bash
 pnpm install
@@ -51,13 +52,15 @@ pnpm dev
 常用命令：
 
 ```bash
-pnpm test        # 运行共享核心与 Web 测试
-pnpm build       # 构建 Web，并生成小程序使用的共享核心
+pnpm test        # 运行共享核心、Web 与 Admin 测试
+pnpm build       # 构建 Web、Admin，并生成小程序使用的共享核心
+pnpm admin:dev   # 启动动作编辑器
+pnpm admin:build # 单独构建动作编辑器
 pnpm mini:check  # 同步共享核心并检查小程序 TypeScript
 pnpm preview     # 预览 Web 构建产物
 ```
 
-Web 端详情见 [`apps/web/README.md`](apps/web/README.md)。
+Web 端详情见 [`apps/web/README.md`](apps/web/README.md)，动作编辑器见 [`apps/admin/README.md`](apps/admin/README.md)。
 
 ## 微信小程序
 
