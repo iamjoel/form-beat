@@ -49,7 +49,7 @@ export function CompletionScreen({
           disabled={recordingSaving}
           onClick={onOpenRecords}
         >
-          {recordingSaving ? "正在保存" : "查看记录"}
+          {recordingSaving ? "正在保存" : "查看体能"}
         </button>
       </div>
     </main>

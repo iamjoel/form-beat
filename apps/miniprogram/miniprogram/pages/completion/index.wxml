@@ -17,7 +17,7 @@
   </view>
   <text class="saved-note">原始相机录像已保存到本机记录</text>
   <view class="completion-actions">
-    <button class="primary-button" bindtap="backHome">返回首页</button>
-    <button class="records-button" bindtap="openRecords">查看录像</button>
+    <button class="primary-button" bindtap="backHome">返回锻炼</button>
+    <button class="records-button" bindtap="openRecords">查看体能</button>
   </view>
 </view>

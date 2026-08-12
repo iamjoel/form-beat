@@ -43,3 +43,120 @@ button::after {
   background: #e9e7df;
   color: #24251f;
 }
+
+.main-nav {
+  width: 100%;
+  height: 112rpx;
+  flex: 0 0 112rpx;
+  display: flex;
+  box-sizing: border-box;
+  border-top: 2rpx solid #d8d9d2;
+  background: #f7f7f2;
+}
+
+.nav-button {
+  min-width: 0;
+  height: 112rpx;
+  flex: 1 1 33.333%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4rpx;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #686a63;
+  font-size: 22rpx;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.nav-button--active {
+  color: #171813;
+}
+
+.nav-glyph {
+  position: relative;
+  width: 36rpx;
+  height: 36rpx;
+  box-sizing: border-box;
+  color: currentColor;
+}
+
+.nav-glyph--calendar {
+  border: 3rpx solid currentColor;
+  border-radius: 5rpx;
+}
+
+.nav-glyph--calendar::before,
+.nav-glyph--calendar::after {
+  position: absolute;
+  content: "";
+}
+
+.nav-glyph--calendar::before {
+  top: 7rpx;
+  right: 0;
+  left: 0;
+  border-top: 3rpx solid currentColor;
+}
+
+.nav-glyph--calendar::after {
+  top: -6rpx;
+  left: 7rpx;
+  width: 15rpx;
+  height: 7rpx;
+  border-right: 3rpx solid currentColor;
+  border-left: 3rpx solid currentColor;
+}
+
+.nav-glyph--workout::before,
+.nav-glyph--workout::after {
+  position: absolute;
+  top: -9rpx;
+  width: 7rpx;
+  height: 22rpx;
+  box-sizing: border-box;
+  border: 3rpx solid currentColor;
+  content: "";
+}
+
+.nav-glyph--workout::before {
+  left: 1rpx;
+}
+
+.nav-glyph--workout::after {
+  right: 1rpx;
+}
+
+.nav-glyph--workout {
+  border-top: 3rpx solid currentColor;
+  transform: translateY(16rpx);
+}
+
+.nav-glyph--profile::before {
+  position: absolute;
+  top: 1rpx;
+  left: 11rpx;
+  width: 14rpx;
+  height: 14rpx;
+  box-sizing: border-box;
+  border: 3rpx solid currentColor;
+  border-radius: 50%;
+  content: "";
+}
+
+.nav-glyph--profile::after {
+  position: absolute;
+  right: 4rpx;
+  bottom: 1rpx;
+  left: 4rpx;
+  height: 15rpx;
+  box-sizing: border-box;
+  border: 3rpx solid currentColor;
+  border-bottom: 0;
+  border-radius: 18rpx 18rpx 0 0;
+  content: "";
+}

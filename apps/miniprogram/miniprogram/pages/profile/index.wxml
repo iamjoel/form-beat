@@ -1,0 +1,60 @@
+<view class="profile-page">
+  <scroll-view class="profile-scroll" scroll-y enhanced show-scrollbar="false">
+    <view class="profile-content">
+      <view class="profile-header">
+        <text class="profile-title">个人</text>
+        <text class="profile-subtitle">你的训练身份与录屏偏好</text>
+      </view>
+
+      <view class="identity-section">
+        <button class="profile-photo" open-type="chooseAvatar" bindchooseavatar="chooseAvatar" aria-label="更换头像">
+          <image wx:if="{{profileImage}}" src="{{profileImage}}" mode="aspectFill"></image>
+          <text wx:else class="profile-initial">{{profileInitial}}</text>
+          <text class="photo-action">更换</text>
+        </button>
+        <view class="name-field">
+          <text>用户名</text>
+          <input
+            type="nickname"
+            value="{{username}}"
+            maxlength="16"
+            placeholder="输入用户名"
+            bindinput="changeUsername"
+          />
+        </view>
+      </view>
+
+      <view class="recording-section">
+        <text class="setting-title">录屏头像</text>
+        <text class="setting-copy">训练录像中用 Emoji 遮挡面部，仅影响之后的录屏。</text>
+        <view class="recording-options">
+          <button
+            wx:for="{{recordingOptions}}"
+            wx:key="id"
+            class="recording-option {{recordingAvatar === item.id ? 'recording-option--selected' : ''}}"
+            data-id="{{item.id}}"
+            aria-label="{{item.label}}"
+            bindtap="changeRecordingAvatar"
+          >
+            <text>{{item.emoji}}</text>
+            <text>{{item.label}}</text>
+          </button>
+        </view>
+      </view>
+
+      <text class="privacy-note">头像、用户名和训练录像都只保存在当前设备。</text>
+    </view>
+  </scroll-view>
+
+  <view class="main-nav profile-nav">
+    <button class="nav-button" aria-label="体能" bindtap="openFitness">
+      <view class="nav-glyph nav-glyph--calendar"></view><text>体能</text>
+    </button>
+    <button class="nav-button" aria-label="锻炼" bindtap="openWorkout">
+      <view class="nav-glyph nav-glyph--workout"></view><text>锻炼</text>
+    </button>
+    <button class="nav-button nav-button--active" aria-label="个人，当前页面">
+      <view class="nav-glyph nav-glyph--profile"></view><text>个人</text>
+    </button>
+  </view>
+</view>

@@ -476,7 +476,7 @@
   /* Primary navigation */
   .main-nav {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     min-height: 3.5rem;
     background: var(--background);
     border-top: 1px solid var(--line);
@@ -978,8 +978,9 @@
     border: 1px solid var(--line);
   }
 
-  /* Records */
-  .records-screen {
+  /* Fitness */
+  .fitness-screen,
+  .profile-screen {
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -987,48 +988,255 @@
     background: var(--background);
   }
 
-  .records-content {
+  .fitness-content,
+  .profile-content {
     flex: 1;
     padding-top: max(1rem, env(safe-area-inset-top));
     padding-right: max(1rem, env(safe-area-inset-right));
-    padding-bottom: 1.5rem;
+    padding-bottom: 2rem;
     padding-left: max(1rem, env(safe-area-inset-left));
   }
 
-  .records-header {
+  .fitness-header {
+    display: flex;
+    min-height: 3.5rem;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+
+  .fitness-header h1,
+  .profile-header h1 {
+    font-size: 1.5rem;
+    font-weight: 760;
+    letter-spacing: -0.04em;
+  }
+
+  .fitness-header p {
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+
+  .today-summary {
+    margin-top: 1rem;
+    padding: 1.25rem;
+    color: var(--camera-text);
+    background: var(--ink);
+    border-radius: 1rem;
+  }
+
+  .today-summary__heading {
+    display: flex;
+    align-items: start;
+    justify-content: space-between;
+  }
+
+  .today-summary__heading p {
+    font-size: 0.75rem;
+    font-weight: 650;
+    color: #aeb0a7;
+  }
+
+  .today-summary__heading h2 {
+    margin-top: 0.2rem;
+    font-size: 1.75rem;
+    font-weight: 760;
+    letter-spacing: -0.05em;
+  }
+
+  .today-summary__heading > span {
+    display: grid;
+    width: 2.25rem;
+    height: 2.25rem;
+    place-items: center;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--ink);
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  .fitness-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 1.5rem;
+  }
+
+  .fitness-summary > div + div {
+    padding-left: 1rem;
+    border-left: 1px solid rgb(247 247 242 / 22%);
+  }
+
+  .fitness-summary dt {
+    font-size: 0.6875rem;
+    color: #aeb0a7;
+  }
+
+  .fitness-summary dd {
+    margin-top: 0.25rem;
+    overflow: hidden;
+    font-size: 1.4rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 720;
+    letter-spacing: -0.04em;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .fitness-summary small {
+    margin-left: 0.2rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0;
+  }
+
+  .today-summary > button {
+    display: flex;
+    width: 100%;
+    min-height: 3rem;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1.25rem;
+    padding-top: 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 650;
+    color: var(--camera-text);
+    background: transparent;
+    border-top: 1px solid rgb(247 247 242 / 22%);
+  }
+
+  .today-summary > button span {
+    font-size: 1.25rem;
+    color: var(--accent);
+  }
+
+  .fitness-history {
+    margin-top: 2.25rem;
+  }
+
+  .calendar-heading {
     display: flex;
     min-height: 3rem;
     align-items: center;
     justify-content: space-between;
   }
 
-  .records-header h1 {
-    font-size: 1.5rem;
-    font-weight: 760;
-    letter-spacing: -0.04em;
+  .calendar-heading h2 {
+    font-size: 1.125rem;
+    font-weight: 720;
   }
 
-  .records-status {
+  .calendar-heading > div {
     display: grid;
-    min-height: 13rem;
+    grid-template-columns: 2.75rem minmax(6rem, auto) 2.75rem;
+    align-items: center;
+  }
+
+  .calendar-heading button {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    font-size: 1.6rem;
+    font-weight: 350;
+    background: transparent;
+  }
+
+  .calendar-heading p {
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 650;
+    text-align: center;
+  }
+
+  .calendar-weekdays,
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .calendar-weekdays {
+    margin-top: 0.75rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .calendar-weekdays span {
+    font-size: 0.625rem;
+    font-weight: 650;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  .calendar-grid {
+    row-gap: 0.25rem;
+    padding-top: 0.5rem;
+  }
+
+  .calendar-day,
+  .calendar-blank {
+    min-width: 0;
+    aspect-ratio: 1;
+  }
+
+  .calendar-day {
+    position: relative;
+    display: grid;
+    place-items: center;
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 580;
+    background: transparent;
+    border-radius: 50%;
+  }
+
+  .calendar-day:disabled {
+    cursor: default;
+    opacity: 1;
+  }
+
+  .calendar-day[data-today="true"] span {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.22rem;
+  }
+
+  .calendar-day[data-has-workout="true"] {
+    font-weight: 760;
+    color: var(--ink);
+    background: var(--accent);
+  }
+
+  .calendar-day i {
+    position: absolute;
+    right: 20%;
+    bottom: 14%;
+    width: 0.25rem;
+    height: 0.25rem;
+    background: var(--ink);
+    border-radius: 50%;
+  }
+
+  .calendar-hint {
+    margin-top: 0.75rem;
+    font-size: 0.6875rem;
+    color: var(--muted);
+  }
+
+  .fitness-status {
+    display: grid;
+    min-height: 5rem;
     gap: 0.5rem;
     place-content: center;
     justify-items: center;
-    font-size: 0.875rem;
+    margin-top: 1rem;
+    font-size: 0.8125rem;
     line-height: 1.5;
     text-align: center;
     color: var(--muted);
   }
 
-  .records-status h2 {
-    font-size: 1.25rem;
-    font-weight: 700;
-    color: var(--ink);
-  }
-
-  .records-status button {
+  .fitness-status button,
+  .detail-empty button {
     min-height: 2.75rem;
-    margin-top: 0.5rem;
     padding: 0.625rem 1rem;
     font-size: 0.875rem;
     font-weight: 680;
@@ -1037,10 +1245,87 @@
     border-radius: 0.65rem;
   }
 
-  .records-list {
+  .fitness-screen > .main-nav,
+  .profile-screen > .main-nav {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    flex: 0 0 auto;
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+    padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+  }
+
+  /* Fitness detail */
+  .fitness-detail {
+    width: 100%;
+    min-height: 100svh;
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(2rem, env(safe-area-inset-bottom));
+    padding-left: max(1rem, env(safe-area-inset-left));
+    background: var(--background);
+  }
+
+  .detail-header {
     display: grid;
-    gap: 1.75rem;
-    padding-top: 1rem;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .detail-header > button {
+    display: grid;
+    width: 3rem;
+    height: 3rem;
+    place-items: center;
+    background: transparent;
+    border-radius: 50%;
+  }
+
+  .detail-header svg {
+    width: 1.5rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .detail-header p {
+    font-size: 0.6875rem;
+    font-weight: 650;
+    color: var(--muted);
+  }
+
+  .detail-header h1 {
+    margin-top: 0.1rem;
+    font-size: 1.35rem;
+    font-weight: 760;
+    letter-spacing: -0.04em;
+  }
+
+  .detail-summary {
+    padding: 1.25rem 0 1.5rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .detail-summary .fitness-summary {
+    margin-top: 0;
+  }
+
+  .detail-summary .fitness-summary > div + div {
+    border-left-color: var(--line);
+  }
+
+  .detail-summary .fitness-summary dt {
+    color: var(--muted);
+  }
+
+  .detail-records {
+    display: grid;
+    gap: 2rem;
+    padding-top: 0.5rem;
   }
 
   .record-item {
@@ -1051,10 +1336,13 @@
 
   .record-item__header {
     display: flex;
-    gap: 1rem;
-    align-items: baseline;
+    align-items: end;
     justify-content: space-between;
     margin-bottom: 0.75rem;
+  }
+
+  .record-item__header > div {
+    min-width: 0;
   }
 
   .record-item__header h2 {
@@ -1063,9 +1351,24 @@
   }
 
   .record-item__header time {
-    flex: 0 0 auto;
+    display: block;
+    margin-top: 0.2rem;
     font-size: 0.75rem;
     font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+
+  .record-item__header > strong {
+    font-size: 1.5rem;
+    font-variant-numeric: tabular-nums;
+    font-weight: 740;
+    letter-spacing: -0.04em;
+  }
+
+  .record-item__header > strong small {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0;
     color: var(--muted);
   }
 
@@ -1098,26 +1401,14 @@
   .record-item__summary {
     display: flex;
     gap: 1rem;
-    align-items: end;
+    align-items: center;
     justify-content: space-between;
     padding-top: 0.75rem;
   }
 
-  .record-item__summary dl {
-    display: flex;
-    gap: 1.25rem;
-  }
-
-  .record-item__summary dt {
-    font-size: 0.6875rem;
+  .record-item__summary > p {
+    font-size: 0.75rem;
     color: var(--muted);
-  }
-
-  .record-item__summary dd {
-    margin-top: 0.15rem;
-    font-size: 0.875rem;
-    font-weight: 650;
-    font-variant-numeric: tabular-nums;
   }
 
   .record-actions {
@@ -1151,14 +1442,158 @@
     color: var(--danger);
   }
 
-  .records-screen > .main-nav {
-    position: sticky;
+  .detail-empty {
+    display: grid;
+    min-height: 18rem;
+    gap: 1rem;
+    place-content: center;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .detail-empty h2 {
+    font-size: 1.1rem;
+  }
+
+  /* Profile */
+  .profile-header {
+    padding-top: 0.35rem;
+  }
+
+  .profile-header p {
+    margin-top: 0.35rem;
+    font-size: 0.8125rem;
+    color: var(--muted);
+  }
+
+  .profile-identity {
+    display: grid;
+    grid-template-columns: 5rem minmax(0, 1fr);
+    gap: 1.25rem;
+    align-items: center;
+    margin-top: 2rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .profile-photo {
+    position: relative;
+    display: grid;
+    width: 5rem;
+    height: 5rem;
+    overflow: hidden;
+    place-items: center;
+    font-size: 1.75rem;
+    font-weight: 760;
+    background: var(--accent);
+    border-radius: 50%;
+  }
+
+  .profile-photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .profile-photo small {
+    position: absolute;
+    right: 0;
     bottom: 0;
-    z-index: 2;
-    flex: 0 0 auto;
-    padding-right: max(0.5rem, env(safe-area-inset-right));
-    padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
-    padding-left: max(0.5rem, env(safe-area-inset-left));
+    left: 0;
+    padding: 0.2rem 0 0.3rem;
+    font-size: 0.625rem;
+    font-weight: 650;
+    color: var(--camera-text);
+    background: rgb(14 15 13 / 72%);
+  }
+
+  .profile-name span {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 650;
+    color: var(--muted);
+  }
+
+  .profile-name input {
+    width: 100%;
+    min-height: 3rem;
+    padding: 0;
+    font-size: 1.35rem;
+    font-weight: 720;
+    letter-spacing: -0.03em;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--ink);
+    border-radius: 0;
+  }
+
+  .profile-name input::placeholder {
+    color: var(--muted);
+  }
+
+  .profile-error {
+    margin-top: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--danger);
+  }
+
+  .profile-setting {
+    margin-top: 2rem;
+  }
+
+  .profile-setting h2 {
+    font-size: 1.125rem;
+    font-weight: 720;
+  }
+
+  .profile-setting > div:first-child p {
+    max-width: 26rem;
+    margin-top: 0.35rem;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  .recording-avatar-options {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .recording-avatar-option {
+    display: grid;
+    min-height: 5rem;
+    gap: 0.35rem;
+    padding: 0.65rem 0.3rem;
+    place-content: center;
+    justify-items: center;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+  }
+
+  .recording-avatar-option > span {
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  .recording-avatar-option small {
+    font-size: 0.75rem;
+    font-weight: 650;
+  }
+
+  .recording-avatar-option[data-selected="true"] {
+    color: var(--background);
+    background: var(--ink);
+    border-color: var(--ink);
+  }
+
+  .profile-privacy {
+    margin-top: 2rem;
+    font-size: 0.6875rem;
+    line-height: 1.5;
+    color: var(--muted);
   }
 }
 

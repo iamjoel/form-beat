@@ -48,18 +48,17 @@
     >开始</button>
 
     <view class="main-nav">
-      <button class="nav-button nav-button--active" aria-label="首页，当前页面">
-        <view class="nav-icon nav-icon--home">
-          <view class="home-roof"></view>
-          <view class="home-body">
-            <view class="home-door"></view>
-          </view>
-        </view>
-        <text>首页</text>
+      <button class="nav-button" aria-label="体能" bindtap="openFitness">
+        <view class="nav-glyph nav-glyph--calendar"></view>
+        <text>体能</text>
       </button>
-      <button class="nav-button" aria-label="训练记录" bindtap="openRecords">
-        <view class="nav-icon nav-icon--records"></view>
-        <text>记录</text>
+      <button class="nav-button nav-button--active" aria-label="锻炼，当前页面">
+        <view class="nav-glyph nav-glyph--workout"></view>
+        <text>锻炼</text>
+      </button>
+      <button class="nav-button" aria-label="个人" bindtap="openProfile">
+        <view class="nav-glyph nav-glyph--profile"></view>
+        <text>个人</text>
       </button>
     </view>
   </view>

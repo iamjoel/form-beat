@@ -1,0 +1,58 @@
+<view class="detail-page">
+  <view class="detail-header">
+    <button aria-label="返回体能日历" bindtap="goBack">‹</button>
+    <view>
+      <text class="detail-kicker">训练详情</text>
+      <text class="detail-title">{{dateLabel}}</text>
+    </view>
+  </view>
+
+  <view class="detail-summary">
+    <view class="summary-item">
+      <text class="summary-label">训练</text>
+      <text class="summary-value">{{sessions}}<text>次</text></text>
+    </view>
+    <view class="summary-item">
+      <text class="summary-label">完成</text>
+      <text class="summary-value">{{totalReps}}<text>次</text></text>
+    </view>
+    <view class="summary-item">
+      <text class="summary-label">用时</text>
+      <text class="summary-value">{{totalDuration}}</text>
+    </view>
+  </view>
+
+  <view wx:if="{{records.length > 0}}" class="record-list">
+    <view wx:for="{{records}}" wx:key="id" class="record-item">
+      <view class="record-header">
+        <view>
+          <text class="record-title">{{item.exerciseLabel}}</text>
+          <text class="record-time">{{item.timeLabel}}</text>
+        </view>
+        <text class="record-count">{{item.completedReps}}<text> / {{item.targetReps}} 次</text></text>
+      </view>
+
+      <video
+        class="record-video"
+        src="{{item.videoPath}}"
+        controls
+        object-fit="contain"
+        show-center-play-btn
+        show-fullscreen-btn
+      ></video>
+
+      <view class="record-footer">
+        <text>用时 {{item.durationLabel}}</text>
+        <view class="record-actions">
+          <button data-id="{{item.id}}" bindtap="saveVideo">导出</button>
+          <button class="delete-button" data-id="{{item.id}}" loading="{{deletingId === item.id}}" bindtap="requestDelete">删除</button>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view wx:else class="detail-empty">
+    <text>这天的记录已清空</text>
+    <button bindtap="goBack">返回日历</button>
+  </view>
+</view>

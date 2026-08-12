@@ -1,124 +1,270 @@
-.records-page {
+.fitness-page {
+  height: 100vh;
   display: flex;
   flex-direction: column;
-  gap: 34rpx;
+  overflow: hidden;
+  background: #f7f7f2;
 }
 
-.records-heading {
+.fitness-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.fitness-content {
+  box-sizing: border-box;
+  padding: 32rpx 32rpx 48rpx;
+}
+
+.fitness-header {
+  min-height: 88rpx;
   display: flex;
-  flex-direction: column;
-  gap: 12rpx;
-  padding-top: 20rpx;
+  align-items: baseline;
+  justify-content: space-between;
 }
 
-.title {
-  font-size: 62rpx;
-  font-weight: 880;
-  letter-spacing: -0.055em;
+.fitness-title {
+  color: #171813;
+  font-size: 48rpx;
+  font-weight: 760;
+  letter-spacing: -0.04em;
 }
 
-.subtitle {
-  color: #73756d;
-  font-size: 25rpx;
-  line-height: 1.5;
+.fitness-date {
+  color: #686a63;
+  font-size: 24rpx;
 }
 
-.empty-state {
-  min-height: 760rpx;
+.today-panel {
+  box-sizing: border-box;
+  margin-top: 24rpx;
+  padding: 32rpx;
+  border-radius: 32rpx;
+  background: #171813;
+  color: #f7f7f2;
+}
+
+.today-heading {
   display: flex;
-  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.today-kicker,
+.today-title {
+  display: block;
+}
+
+.today-kicker {
+  color: #aeb0a7;
+  font-size: 22rpx;
+  font-weight: 650;
+}
+
+.today-title {
+  margin-top: 6rpx;
+  font-size: 54rpx;
+  font-weight: 760;
+  letter-spacing: -0.05em;
+}
+
+.today-mark {
+  width: 72rpx;
+  height: 72rpx;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16rpx;
-  text-align: center;
-}
-
-.empty-mark {
-  color: #a7d42a;
-  font-size: 100rpx;
-  line-height: 1;
-}
-
-.empty-title {
-  font-size: 34rpx;
+  border-radius: 50%;
+  background: #c8ef3f;
+  color: #171813;
+  font-size: 32rpx;
   font-weight: 800;
 }
 
-.empty-copy {
-  max-width: 500rpx;
-  color: #74766f;
-  font-size: 24rpx;
-  line-height: 1.55;
-}
-
-.empty-button {
-  width: 380rpx;
-  margin-top: 30rpx;
-}
-
-.record-list {
+.summary-row {
   display: flex;
-  flex-direction: column;
-  gap: 24rpx;
+  margin-top: 42rpx;
 }
 
-.record-card {
-  overflow: hidden;
-  border-radius: 30rpx;
-  background: #fffef9;
-  box-shadow: 0 12rpx 36rpx rgba(35, 37, 28, 0.07);
+.summary-item {
+  min-width: 0;
+  flex: 1 1 33.333%;
 }
 
-.record-header,
-.record-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 24rpx;
+.summary-item + .summary-item {
+  box-sizing: border-box;
+  padding-left: 28rpx;
+  border-left: 2rpx solid rgba(247, 247, 242, 0.22);
 }
 
-.record-title,
-.record-date {
+.summary-label,
+.summary-value {
   display: block;
 }
 
-.record-title {
-  font-size: 30rpx;
-  font-weight: 820;
-}
-
-.record-date,
-.record-duration {
-  margin-top: 6rpx;
-  color: #7a7c74;
+.summary-label {
+  color: #aeb0a7;
   font-size: 21rpx;
 }
 
-.record-count {
-  font-size: 30rpx;
-  font-weight: 850;
+.summary-value {
+  margin-top: 8rpx;
+  overflow: hidden;
+  font-size: 40rpx;
+  font-weight: 720;
+  letter-spacing: -0.04em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.record-video {
+.summary-value text {
+  margin-left: 5rpx;
+  font-size: 21rpx;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.today-detail {
   width: 100%;
-  height: 620rpx;
-  display: block;
+  min-height: 96rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 26rpx;
+  padding: 22rpx 0 0;
+  border-top: 2rpx solid rgba(247, 247, 242, 0.22);
+  border-radius: 0;
+  background: transparent;
+  color: #f7f7f2;
+  font-size: 25rpx;
+}
+
+.today-detail text:last-child {
+  color: #c8ef3f;
+  font-size: 38rpx;
+}
+
+.history-section {
+  margin-top: 64rpx;
+}
+
+.calendar-heading {
+  min-height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.history-title {
+  font-size: 34rpx;
+  font-weight: 720;
+}
+
+.month-switcher {
+  display: flex;
+  align-items: center;
+}
+
+.month-switcher button {
+  width: 80rpx;
+  height: 80rpx;
+  margin: 0;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 52rpx;
+  font-weight: 350;
+  line-height: 1;
+}
+
+.month-switcher text {
+  min-width: 172rpx;
+  font-size: 24rpx;
+  font-weight: 650;
+  text-align: center;
+}
+
+.calendar-weekdays,
+.calendar-grid {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.calendar-weekdays {
+  padding-bottom: 12rpx;
+  border-bottom: 2rpx solid #d8d9d2;
+}
+
+.calendar-weekdays text,
+.calendar-cell {
+  width: 14.2857%;
+}
+
+.calendar-weekdays text {
+  color: #686a63;
+  font-size: 20rpx;
+  font-weight: 650;
+  text-align: center;
+}
+
+.calendar-grid {
+  padding-top: 16rpx;
+}
+
+.calendar-cell,
+.calendar-day,
+.calendar-blank {
+  height: 92rpx;
+  box-sizing: border-box;
+}
+
+.calendar-day {
+  position: relative;
+  width: 92rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #171813;
+  font-size: 25rpx;
+  font-weight: 580;
+}
+
+.calendar-day[disabled] {
+  opacity: 1;
+  color: #171813;
+}
+
+.calendar-day--active {
+  background: #c8ef3f;
+  font-weight: 760;
+}
+
+.calendar-day--today text {
+  border-bottom: 2rpx solid #171813;
+}
+
+.day-dot {
+  position: absolute;
+  right: 18rpx;
+  bottom: 13rpx;
+  width: 7rpx;
+  height: 7rpx;
+  border-radius: 50%;
   background: #171813;
 }
 
-.record-actions {
-  display: flex;
-  gap: 10rpx;
+.calendar-hint {
+  display: block;
+  margin-top: 18rpx;
+  color: #686a63;
+  font-size: 21rpx;
 }
 
-.record-action {
-  margin: 0;
-  padding: 0 24rpx;
-  background: #eceae3;
-  color: #292a25;
-  font-size: 22rpx;
-}
-
-.record-delete {
-  color: #a83333;
+.fitness-nav {
+  box-sizing: content-box;
+  padding-bottom: env(safe-area-inset-bottom);
 }

@@ -1,29 +1,17 @@
 import type { ChangeEvent } from "react";
 import { EXERCISES, type ExerciseId } from "@workout-detect/core/domain/exercises";
 
-import type { AvatarId } from "../domain/records";
 import { MainNav } from "./MainNav";
 
 interface SetupScreenProps {
   exerciseId: ExerciseId;
   target: number;
-  avatar: AvatarId;
   onExerciseChange: (exerciseId: ExerciseId) => void;
   onTargetChange: (target: number) => void;
-  onAvatarChange: (avatar: AvatarId) => void;
-  onOpenRecords: () => void;
+  onOpenFitness: () => void;
+  onOpenProfile: () => void;
   onStart: () => void;
 }
-
-const AVATARS = [
-  { id: "none", label: "无", emoji: null },
-  { id: "man", label: "男", emoji: "👨" },
-  { id: "woman", label: "女", emoji: "👩" },
-] as const satisfies readonly {
-  id: AvatarId;
-  label: string;
-  emoji: string | null;
-}[];
 
 const MIN_TARGET = 1;
 const MAX_TARGET = 99;
@@ -31,11 +19,10 @@ const MAX_TARGET = 99;
 export function SetupScreen({
   exerciseId,
   target,
-  avatar,
   onExerciseChange,
   onTargetChange,
-  onAvatarChange,
-  onOpenRecords,
+  onOpenFitness,
+  onOpenProfile,
   onStart,
 }: SetupScreenProps) {
   const selectedExercise =
@@ -53,7 +40,7 @@ export function SetupScreen({
   return (
     <main className="setup-screen">
       <header className="setup-header">
-        <h1>训练</h1>
+        <h1>锻炼</h1>
       </header>
 
       <div className="setup-content">
@@ -82,27 +69,6 @@ export function SetupScreen({
           <p id="selected-exercise-hint" className="sr-only">
             当前已选择{selectedExercise.label}
           </p>
-        </section>
-
-        <section className="setup-section" aria-labelledby="avatar-heading">
-          <h2 id="avatar-heading">录屏头像</h2>
-          <div className="avatar-options" role="radiogroup" aria-label="选择录屏头像">
-            {AVATARS.map((option) => (
-              <button
-                className="avatar-option"
-                data-selected={avatar === option.id ? "true" : "false"}
-                type="button"
-                role="radio"
-                aria-checked={avatar === option.id}
-                aria-label={option.id === "none" ? "不使用头像" : `${option.label}性 Emoji 头像`}
-                key={option.id}
-                onClick={() => onAvatarChange(option.id)}
-              >
-                {option.emoji ? <span aria-hidden="true">{option.emoji}</span> : null}
-                <small>{option.label}</small>
-              </button>
-            ))}
-          </div>
         </section>
 
         <section className="setup-section" aria-labelledby="target-heading">
@@ -153,9 +119,10 @@ export function SetupScreen({
           开始
         </button>
         <MainNav
-          active="home"
+          active="workout"
           onNavigate={(nextView) => {
-            if (nextView === "records") onOpenRecords();
+            if (nextView === "fitness") onOpenFitness();
+            if (nextView === "profile") onOpenProfile();
           }}
         />
       </footer>

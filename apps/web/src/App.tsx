@@ -1,8 +1,9 @@
-import { lazy, Suspense, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { EXERCISES, type ExerciseId } from "@workout-detect/core/domain/exercises";
 import type { CompletionStats } from "@workout-detect/core/domain/session";
 
 import { CompletionScreen } from "./components/CompletionScreen";
+import { ProfileScreen } from "./components/ProfileScreen";
 import { SetupScreen } from "./components/SetupScreen";
 import type { AvatarId } from "./domain/records";
 import { primeAudio, primeSpeechSynthesis } from "./lib/audio";
@@ -22,16 +23,17 @@ const ExerciseDemoScreen = lazy(() =>
     default: module.ExerciseDemoScreen,
   })),
 );
-const RecordsScreen = lazy(() =>
-  import("./components/RecordsScreen").then((module) => ({
-    default: module.RecordsScreen,
+const FitnessScreen = lazy(() =>
+  import("./components/FitnessScreen").then((module) => ({
+    default: module.FitnessScreen,
   })),
 );
 
-type AppView = "setup" | "demo" | "records" | "workout" | "complete";
+type AppView = "fitness" | "setup" | "profile" | "demo" | "workout" | "complete";
 
 const initialExercise = EXERCISES[0];
 const AVATAR_STORAGE_KEY = "workout-detect:recording-avatar:v1";
+const PROFILE_STORAGE_KEY = "workout-detect:profile:v1";
 const DEMO_DISMISSED_STORAGE_KEY = "workout-detect:exercise-demo-dismissed:v1";
 const showCompletionPreview =
   import.meta.env.DEV && new URLSearchParams(window.location.search).get("preview") === "complete";
@@ -50,6 +52,23 @@ function readSavedAvatar(): AvatarId {
     // Private browsing or device policy can make localStorage unavailable.
   }
   return "none";
+}
+
+interface SavedProfile {
+  username: string;
+  image: string;
+}
+
+function readSavedProfile(): SavedProfile {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(PROFILE_STORAGE_KEY) ?? "null") as Partial<SavedProfile> | null;
+    return {
+      username: typeof value?.username === "string" ? value.username.slice(0, 16) : "训练者",
+      image: typeof value?.image === "string" && value.image.startsWith("data:image/") ? value.image : "",
+    };
+  } catch {
+    return { username: "训练者", image: "" };
+  }
 }
 
 function recordingErrorMessage(error: unknown): string {
@@ -73,6 +92,7 @@ export function App() {
   const [exerciseId, setExerciseId] = useState<ExerciseId>(initialExercise.id);
   const [target, setTarget] = useState<number>(initialExercise.defaultTarget);
   const [avatar, setAvatar] = useState<AvatarId>(readSavedAvatar);
+  const [profile, setProfile] = useState<SavedProfile>(readSavedProfile);
   const [stats, setStats] = useState<CompletionStats | null>(
     showCompletionPreview ? previewStats : null,
   );
@@ -81,6 +101,12 @@ export function App() {
   );
   const [recordingSaving, setRecordingSaving] = useState(false);
   const saveTokenRef = useRef(0);
+
+  useEffect(() => {
+    if (view === "fitness" || view === "setup" || view === "profile") {
+      window.scrollTo({ top: 0, left: 0 });
+    }
+  }, [view]);
 
   const handleExerciseChange = (nextExerciseId: ExerciseId) => {
     const nextExercise = EXERCISES.find((exercise) => exercise.id === nextExerciseId);
@@ -128,6 +154,18 @@ export function App() {
     } catch {
       // The choice still applies to the current tab when persistence is blocked.
     }
+  };
+
+  const updateProfile = (next: Partial<SavedProfile>) => {
+    setProfile((current) => {
+      const value = { ...current, ...next };
+      try {
+        window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(value));
+      } catch {
+        // The setting still applies to the current tab when persistence is blocked.
+      }
+      return value;
+    });
   };
 
   const handleComplete = async (
@@ -208,16 +246,32 @@ export function App() {
         recordingNotice={recordingNotice}
         recordingSaving={recordingSaving}
         onRepeat={handleStart}
-        onOpenRecords={() => setView("records")}
+        onOpenRecords={() => setView("fitness")}
       />
     );
   }
 
-  if (view === "records") {
+  if (view === "fitness") {
     return (
       <Suspense fallback={<RecordsLoading />}>
-        <RecordsScreen onHome={() => setView("setup")} />
+        <FitnessScreen
+          onNavigate={(destination) => setView(destination === "workout" ? "setup" : "profile")}
+        />
       </Suspense>
+    );
+  }
+
+  if (view === "profile") {
+    return (
+      <ProfileScreen
+        username={profile.username}
+        profileImage={profile.image}
+        recordingAvatar={avatar}
+        onUsernameChange={(username) => updateProfile({ username })}
+        onProfileImageChange={(image) => updateProfile({ image })}
+        onRecordingAvatarChange={handleAvatarChange}
+        onNavigate={(destination) => setView(destination === "workout" ? "setup" : "fitness")}
+      />
     );
   }
 
@@ -225,11 +279,10 @@ export function App() {
     <SetupScreen
       exerciseId={exerciseId}
       target={target}
-      avatar={avatar}
       onExerciseChange={handleExerciseChange}
       onTargetChange={setTarget}
-      onAvatarChange={handleAvatarChange}
-      onOpenRecords={() => setView("records")}
+      onOpenFitness={() => setView("fitness")}
+      onOpenProfile={() => setView("profile")}
       onStart={handleStart}
     />
   );

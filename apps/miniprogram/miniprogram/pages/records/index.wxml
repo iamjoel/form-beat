@@ -1,48 +1,80 @@
-<view class="safe-page records-page">
-  <view class="records-heading">
-    <text class="eyebrow">LOCAL RECORDS</text>
-    <text class="title">训练记录</text>
-    <text class="subtitle">录像只保存在当前微信设备中，可导出到系统相册。</text>
-  </view>
-
-  <view wx:if="{{records.length === 0}}" class="empty-state">
-    <text class="empty-mark">○</text>
-    <text class="empty-title">还没有记录</text>
-    <text class="empty-copy">有效训练满 10 秒或完成目标后会保存在这里。</text>
-    <button class="primary-button empty-button" bindtap="startWorkout">开始训练</button>
-  </view>
-
-  <view wx:else class="record-list">
-    <view wx:for="{{records}}" wx:key="id" class="record-card">
-      <view class="record-header">
-        <view>
-          <text class="record-title">{{item.exerciseLabel}}</text>
-          <text class="record-date">{{item.dateLabel}}</text>
-        </view>
-        <text class="record-count">{{item.completedReps}} / {{item.targetReps}}</text>
+<view class="fitness-page">
+  <scroll-view class="fitness-scroll" scroll-y enhanced show-scrollbar="false">
+    <view class="fitness-content">
+      <view class="fitness-header">
+        <text class="fitness-title">体能</text>
+        <text class="fitness-date">{{currentDateLabel}}</text>
       </view>
 
-      <video
-        class="record-video"
-        src="{{item.videoPath}}"
-        controls
-        object-fit="cover"
-        show-center-play-btn
-        show-fullscreen-btn
-      ></video>
-
-      <view class="record-footer">
-        <text class="record-duration">用时 {{item.durationLabel}}</text>
-        <view class="record-actions">
-          <button class="record-action" data-id="{{item.id}}" bindtap="saveVideo">存相册</button>
-          <button
-            class="record-action record-delete"
-            data-id="{{item.id}}"
-            bindtap="requestDelete"
-            loading="{{deletingId === item.id}}"
-          >删除</button>
+      <view class="today-panel">
+        <view class="today-heading">
+          <view>
+            <text class="today-kicker">今天</text>
+            <text class="today-title">{{todaySessions > 0 ? '练过了' : '还没开始'}}</text>
+          </view>
+          <view class="today-mark">{{todaySessions > 0 ? '✓' : '—'}}</view>
         </view>
+        <view class="summary-row">
+          <view class="summary-item">
+            <text class="summary-label">训练</text>
+            <text class="summary-value">{{todaySessions}}<text>次</text></text>
+          </view>
+          <view class="summary-item">
+            <text class="summary-label">完成</text>
+            <text class="summary-value">{{todayReps}}<text>次</text></text>
+          </view>
+          <view class="summary-item">
+            <text class="summary-label">用时</text>
+            <text class="summary-value">{{todayDuration}}</text>
+          </view>
+        </view>
+        <button wx:if="{{todaySessions > 0}}" class="today-detail" data-date="{{todayKey}}" bindtap="openDay">
+          <text>查看今天的视频</text><text>→</text>
+        </button>
+      </view>
+
+      <view class="history-section">
+        <view class="calendar-heading">
+          <text class="history-title">训练日历</text>
+          <view class="month-switcher">
+            <button data-delta="-1" aria-label="上个月" bindtap="changeMonth">‹</button>
+            <text>{{monthLabel}}</text>
+            <button data-delta="1" aria-label="下个月" bindtap="changeMonth">›</button>
+          </view>
+        </view>
+        <view class="calendar-weekdays">
+          <text wx:for="{{weekdays}}" wx:key="*this">{{item}}</text>
+        </view>
+        <view class="calendar-grid">
+          <view wx:for="{{calendarCells}}" wx:key="key" class="calendar-cell">
+            <view wx:if="{{item.blank}}" class="calendar-blank"></view>
+            <button
+              wx:else
+              class="calendar-day {{item.hasWorkout ? 'calendar-day--active' : ''}} {{item.isToday ? 'calendar-day--today' : ''}}"
+              disabled="{{!item.hasWorkout}}"
+              data-date="{{item.key}}"
+              aria-label="{{item.ariaLabel}}"
+              bindtap="openDay"
+            >
+              <text>{{item.day}}</text>
+              <view wx:if="{{item.hasWorkout}}" class="day-dot"></view>
+            </button>
+          </view>
+        </view>
+        <text class="calendar-hint">有荧光标记的日期可查看训练录像</text>
       </view>
     </view>
+  </scroll-view>
+
+  <view class="main-nav fitness-nav">
+    <button class="nav-button nav-button--active" aria-label="体能，当前页面">
+      <view class="nav-glyph nav-glyph--calendar"></view><text>体能</text>
+    </button>
+    <button class="nav-button" aria-label="锻炼" bindtap="openWorkout">
+      <view class="nav-glyph nav-glyph--workout"></view><text>锻炼</text>
+    </button>
+    <button class="nav-button" aria-label="个人" bindtap="openProfile">
+      <view class="nav-glyph nav-glyph--profile"></view><text>个人</text>
+    </button>
   </view>
 </view>

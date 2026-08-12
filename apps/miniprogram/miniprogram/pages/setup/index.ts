@@ -237,7 +237,11 @@ Page({
     });
   },
 
-  openRecords() {
+  openFitness() {
     wx.navigateTo({ url: "/pages/records/index" });
+  },
+
+  openProfile() {
+    wx.navigateTo({ url: "/pages/profile/index" });
   },
 });

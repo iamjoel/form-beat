@@ -3,6 +3,8 @@
     "pages/setup/index",
     "pages/workout/index",
     "pages/records/index",
+    "pages/fitness-detail/index",
+    "pages/profile/index",
     "pages/completion/index"
   ],
   "window": {

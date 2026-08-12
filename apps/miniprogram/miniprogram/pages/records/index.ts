@@ -1,95 +1,167 @@
-import { getExercise } from "../../shared/core/domain/exercises";
-import { formatDuration } from "../../shared/core/domain/session";
 import {
-  deleteWorkoutRecord,
   listWorkoutRecords,
   type MiniProgramWorkoutRecord,
 } from "../../lib/workout-records";
 
-interface RecordView extends MiniProgramWorkoutRecord {
-  exerciseLabel: string;
-  dateLabel: string;
-  durationLabel: string;
+interface CalendarCell {
+  key: string;
+  day: number;
+  blank: boolean;
+  hasWorkout: boolean;
+  isToday: boolean;
+  ariaLabel: string;
 }
 
-interface RecordsPageInstance {
-  data: {
-    records: RecordView[];
-    deletingId: string;
-  };
-  setData(data: Partial<RecordsPageInstance["data"]>): void;
+interface FitnessPageData {
+  weekdays: readonly string[];
+  calendarCells: CalendarCell[];
+  currentDateLabel: string;
+  monthLabel: string;
+  todayKey: string;
+  todaySessions: number;
+  todayReps: number;
+  todayDuration: string;
+}
+
+interface FitnessPageInstance {
+  data: FitnessPageData;
+  setData(data: Partial<FitnessPageData>): void;
+  visibleMonth: Date;
+  records: MiniProgramWorkoutRecord[];
   reloadRecords(): void;
+  refreshCalendar(): void;
 }
 
-function formatDate(timestamp: number): string {
-  const date = new Date(timestamp);
-  const pad = (value: number) => value.toString().padStart(2, "0");
-  return `${date.getFullYear()}.${pad(date.getMonth() + 1)}.${pad(
-    date.getDate(),
-  )} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
+const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"] as const;
 
 Page({
   data: {
-    records: [],
-    deletingId: "",
+    weekdays: WEEKDAYS,
+    calendarCells: [],
+    currentDateLabel: "",
+    monthLabel: "",
+    todayKey: "",
+    todaySessions: 0,
+    todayReps: 0,
+    todayDuration: "0秒",
+  } satisfies FitnessPageData,
+
+  onLoad(this: FitnessPageInstance) {
+    this.visibleMonth = startOfMonth(new Date());
+    this.records = [];
   },
 
-  onShow(this: RecordsPageInstance) {
+  onShow(this: FitnessPageInstance) {
     this.reloadRecords();
   },
 
-  reloadRecords(this: RecordsPageInstance) {
-    const records = listWorkoutRecords().map((record) => ({
-      ...record,
-      exerciseLabel: getExercise(record.exerciseId).label,
-      dateLabel: formatDate(record.completedAt),
-      durationLabel: formatDuration(record.durationSeconds),
-    }));
-    this.setData({ records });
+  reloadRecords(this: FitnessPageInstance) {
+    this.records = listWorkoutRecords();
+    const today = new Date();
+    const todayKey = toDateKey(today);
+    const todayRecords = this.records.filter(
+      (record) => toDateKey(new Date(record.completedAt)) === todayKey,
+    );
+    const reps = todayRecords.reduce((total, record) => total + record.completedReps, 0);
+    const seconds = todayRecords.reduce((total, record) => total + record.durationSeconds, 0);
+    this.setData({
+      todayKey,
+      currentDateLabel: `${today.getFullYear()}年${today.getMonth() + 1}月`,
+      todaySessions: todayRecords.length,
+      todayReps: reps,
+      todayDuration: formatCompactDuration(seconds),
+    });
+    this.refreshCalendar();
   },
 
-  saveVideo(this: RecordsPageInstance, event: MiniProgramEvent) {
-    const id = String(event.currentTarget.dataset.id ?? "");
-    const record = this.data.records.find((item) => item.id === id);
-    if (!record) return;
-    wx.saveVideoToPhotosAlbum({
-      filePath: record.videoPath,
-      success: () => wx.showToast({ title: "已保存到相册", icon: "success" }),
-      fail: (error) => {
-        console.warn("保存到相册失败", error);
-        wx.showToast({ title: "请允许相册权限", icon: "none" });
-      },
+  refreshCalendar(this: FitnessPageInstance) {
+    const todayKey = toDateKey(new Date());
+    const recordsByDate = new Map<string, number>();
+    for (const record of this.records) {
+      const key = toDateKey(new Date(record.completedAt));
+      recordsByDate.set(key, (recordsByDate.get(key) ?? 0) + 1);
+    }
+
+    const first = startOfMonth(this.visibleMonth);
+    const leading = (first.getDay() + 6) % 7;
+    const days = new Date(first.getFullYear(), first.getMonth() + 1, 0).getDate();
+    const cells: CalendarCell[] = [];
+    for (let index = 0; index < leading; index += 1) {
+      cells.push({
+        key: `blank-${index}`,
+        day: 0,
+        blank: true,
+        hasWorkout: false,
+        isToday: false,
+        ariaLabel: "",
+      });
+    }
+    for (let day = 1; day <= days; day += 1) {
+      const date = new Date(first.getFullYear(), first.getMonth(), day);
+      const key = toDateKey(date);
+      const count = recordsByDate.get(key) ?? 0;
+      cells.push({
+        key,
+        day,
+        blank: false,
+        hasWorkout: count > 0,
+        isToday: key === todayKey,
+        ariaLabel: `${date.getMonth() + 1}月${day}日${count > 0 ? `，${count}次训练，查看详情` : "，无训练"}`,
+      });
+    }
+    while (cells.length % 7 !== 0) {
+      cells.push({
+        key: `blank-tail-${cells.length}`,
+        day: 0,
+        blank: true,
+        hasWorkout: false,
+        isToday: false,
+        ariaLabel: "",
+      });
+    }
+    this.setData({
+      calendarCells: cells,
+      monthLabel: `${first.getFullYear()}年${first.getMonth() + 1}月`,
     });
   },
 
-  requestDelete(this: RecordsPageInstance, event: MiniProgramEvent) {
-    const id = String(event.currentTarget.dataset.id ?? "");
-    const record = this.data.records.find((item) => item.id === id);
-    if (!record) return;
-    wx.showModal({
-      title: "删除训练记录？",
-      content: `这会同时删除本机保存的${record.exerciseLabel}录像。`,
-      confirmText: "删除",
-      confirmColor: "#b82e2e",
-      success: (result) => {
-        if (!result.confirm) return;
-        this.setData({ deletingId: id });
-        void deleteWorkoutRecord(id)
-          .then(() => {
-            this.reloadRecords();
-            wx.showToast({ title: "已删除", icon: "success" });
-          })
-          .catch((error) => {
-            console.error("删除训练录像失败", error);
-            wx.showToast({ title: "删除失败", icon: "none" });
-          })
-          .finally(() => this.setData({ deletingId: "" }));
-      },
-    });
+  changeMonth(this: FitnessPageInstance, event: MiniProgramEvent) {
+    const delta = Number(event.currentTarget.dataset.delta);
+    if (!Number.isFinite(delta)) return;
+    this.visibleMonth = new Date(
+      this.visibleMonth.getFullYear(),
+      this.visibleMonth.getMonth() + delta,
+      1,
+    );
+    this.refreshCalendar();
   },
 
-  startWorkout() {
-    wx.navigateBack();
+  openDay(this: FitnessPageInstance, event: MiniProgramEvent) {
+    const date = String(event.currentTarget.dataset.date ?? "");
+    if (!date) return;
+    wx.navigateTo({ url: `/pages/fitness-detail/index?date=${date}` });
+  },
+
+  openWorkout() {
+    wx.redirectTo({ url: "/pages/setup/index" });
+  },
+
+  openProfile() {
+    wx.redirectTo({ url: "/pages/profile/index" });
   },
 });
+
+function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function toDateKey(date: Date): string {
+  const pad = (value: number) => value.toString().padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+function formatCompactDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}秒`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}分${seconds % 60 ? `${seconds % 60}秒` : ""}`;
+}
