@@ -1,4 +1,4 @@
-export type MainNavDestination = "fitness" | "workout" | "profile";
+export type MainNavDestination = "fitness" | "exercises" | "workout" | "profile";
 
 interface MainNavProps {
   active: MainNavDestination;
@@ -29,6 +29,35 @@ export function MainNav({ active, onNavigate }: MainNavProps) {
           <path d="M8 13h3M8 17h3M15 13h1M15 17h1" />
         </svg>
         <span>体能</span>
+      </button>
+
+      <button
+        className="main-nav__button"
+        data-active={active === "exercises" ? "true" : "false"}
+        type="button"
+        aria-current={active === "exercises" ? "page" : undefined}
+        onClick={() => onNavigate("exercises")}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="6" cy="6" r="1.5" />
+          <circle cx="12" cy="6" r="1.5" />
+          <circle cx="18" cy="6" r="1.5" />
+          <circle cx="6" cy="12" r="1.5" />
+          <circle cx="12" cy="12" r="1.5" />
+          <circle cx="18" cy="12" r="1.5" />
+          <circle cx="6" cy="18" r="1.5" />
+          <circle cx="12" cy="18" r="1.5" />
+          <circle cx="18" cy="18" r="1.5" />
+        </svg>
+        <span>动作</span>
       </button>
 
       <button

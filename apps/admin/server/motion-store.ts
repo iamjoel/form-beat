@@ -98,6 +98,21 @@ export class MotionStore {
     return rows.map((row) => toSummary(asMotionRow(row)!));
   }
 
+  listReady(): StoredMotion[] {
+    const rows = this.database.prepare(`
+      SELECT * FROM motions
+      WHERE status = 'ready'
+      ORDER BY updated_at DESC, created_at DESC
+    `).all();
+    return rows.map((value) => {
+      const row = asMotionRow(value)!;
+      return {
+        ...toSummary(row),
+        project: JSON.parse(row.project_json) as MotionProject,
+      };
+    });
+  }
+
   get(id: string): StoredMotion | null {
     const row = asMotionRow(
       this.database.prepare("SELECT * FROM motions WHERE id = ?").get(id),

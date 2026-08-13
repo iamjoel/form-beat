@@ -11,7 +11,9 @@ import type { MotionProject } from "./lib/editor-model";
 import {
   getMotion,
   listMotions,
+  publishMotion,
   updateMotion,
+  type MotionStatus,
   type MotionSummary,
   type StoredMotion,
 } from "./lib/motion-api";
@@ -156,7 +158,7 @@ function MotionListPage({ navigate }: { navigate: (path: string) => void }) {
               <span>{getExercise(motion.exerciseId as ExerciseId).label}</span>
               <span>{formatDuration(motion.durationMs)}</span>
               <span>{motion.keyframeCount}</span>
-              <span><em className={`status-badge is-${motion.status}`}>{motion.status === "ready" ? "已就绪" : "草稿"}</em></span>
+              <span><em className={`status-badge is-${motion.status}`}>{motion.status === "ready" ? "已发布" : "草稿"}</em></span>
               <span>{formatUpdatedAt(motion.updatedAt)}</span>
               <span className="row-arrow">→</span>
             </button>
@@ -173,6 +175,8 @@ function EditorPage({ id, navigate }: { id: string; navigate: (path: string) => 
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const timerRef = useRef<number | null>(null);
   const pendingRef = useRef<MotionProject | null>(null);
+  const pendingStatusRef = useRef<MotionStatus | undefined>(undefined);
+  const statusRef = useRef<MotionStatus>("draft");
   const savedJsonRef = useRef("");
   const mountedRef = useRef(true);
 
@@ -181,27 +185,37 @@ function EditorPage({ id, navigate }: { id: string; navigate: (path: string) => 
     void getMotion(id)
       .then((record) => {
         setMotion(record);
+        statusRef.current = record.status;
         savedJsonRef.current = JSON.stringify(record.project);
       })
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "读取动作失败"));
     return () => {
       mountedRef.current = false;
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-      if (pendingRef.current) void updateMotion(id, pendingRef.current);
+      if (pendingRef.current) {
+        void updateMotion(id, pendingRef.current, pendingStatusRef.current);
+      }
     };
   }, [id]);
 
   const savePending = useCallback(async () => {
     const project = pendingRef.current;
     if (!project) return;
+    const status = pendingStatusRef.current;
     pendingRef.current = null;
+    pendingStatusRef.current = undefined;
     const serialized = JSON.stringify(project);
     try {
-      await updateMotion(id, project);
+      const updated = await updateMotion(id, project, status);
+      statusRef.current = updated.status;
+      if (mountedRef.current) setMotion(updated);
       savedJsonRef.current = serialized;
       if (mountedRef.current && !pendingRef.current) setSaveState("saved");
     } catch {
-      if (!pendingRef.current) pendingRef.current = project;
+      if (!pendingRef.current) {
+        pendingRef.current = project;
+        pendingStatusRef.current = status;
+      }
       if (mountedRef.current) setSaveState("error");
     }
   }, [id]);
@@ -210,6 +224,11 @@ function EditorPage({ id, navigate }: { id: string; navigate: (path: string) => 
     const serialized = JSON.stringify(project);
     if (serialized === savedJsonRef.current) return;
     pendingRef.current = project;
+    if (statusRef.current === "ready") {
+      statusRef.current = "draft";
+      pendingStatusRef.current = "draft";
+      setMotion((current) => current ? { ...current, status: "draft" } : current);
+    }
     setSaveState("saving");
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => {
@@ -217,6 +236,20 @@ function EditorPage({ id, navigate }: { id: string; navigate: (path: string) => 
       void savePending();
     }, 350);
   }, [savePending]);
+
+  const handlePublish = useCallback(async (project: MotionProject) => {
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    timerRef.current = null;
+    pendingRef.current = project;
+    await savePending();
+    const result = await publishMotion(id, project);
+    savedJsonRef.current = JSON.stringify(result.motion.project);
+    statusRef.current = result.motion.status;
+    if (mountedRef.current) {
+      setMotion(result.motion);
+      setSaveState("saved");
+    }
+  }, [id, savePending]);
 
   const handleBack = useCallback(() => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
@@ -241,6 +274,8 @@ function EditorPage({ id, navigate }: { id: string; navigate: (path: string) => 
       initialProject={motion.project}
       onProjectChange={handleProjectChange}
       onBack={handleBack}
+      isPublished={motion.status === "ready"}
+      onPublish={handlePublish}
       saveState={saveState}
     />
   );

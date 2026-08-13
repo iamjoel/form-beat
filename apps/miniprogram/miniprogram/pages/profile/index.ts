@@ -111,6 +111,10 @@ Page({
     wx.redirectTo({ url: "/pages/records/index" });
   },
 
+  openActions() {
+    wx.redirectTo({ url: "/pages/actions/index" });
+  },
+
   openWorkout() {
     wx.redirectTo({ url: "/pages/setup/index" });
   },

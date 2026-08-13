@@ -1,5 +1,7 @@
+import type { CatalogExerciseId } from "../domain/exercise-catalog";
 import type { ExerciseId } from "../domain/exercises";
 import type { PosePoint } from "./geometry";
+import type { MotionProject } from "./motion-project";
 import {
   classifyPose,
   type PoseAngleOverlay,
@@ -45,20 +47,63 @@ export interface ExerciseDemoCriticalMarkup {
   pointIndices: readonly number[];
 }
 
+export type HuskySpriteAssetId =
+  | "husky-exercise-sprites-v2"
+  | "husky-exercise-sprites-v3";
+
 export interface ExerciseDemoSpriteCrop {
+  assetId: HuskySpriteAssetId;
   sourceY: number;
   sourceHeight: number;
   mirror: boolean;
 }
 
 export const EXERCISE_DEMO_SPRITE_CROPS: Record<
-  ExerciseId,
+  CatalogExerciseId,
   ExerciseDemoSpriteCrop
 > = {
-  squat: { sourceY: 0, sourceHeight: 0.3, mirror: false },
-  "push-up": { sourceY: 0.29, sourceHeight: 0.205, mirror: true },
-  "jumping-jack": { sourceY: 0.485, sourceHeight: 0.25, mirror: false },
-  lunge: { sourceY: 0.735, sourceHeight: 0.265, mirror: false },
+  squat: {
+    assetId: "husky-exercise-sprites-v2",
+    sourceY: 0,
+    sourceHeight: 0.3,
+    mirror: false,
+  },
+  "push-up": {
+    assetId: "husky-exercise-sprites-v2",
+    sourceY: 0.29,
+    sourceHeight: 0.205,
+    mirror: true,
+  },
+  "jumping-jack": {
+    assetId: "husky-exercise-sprites-v2",
+    sourceY: 0.485,
+    sourceHeight: 0.25,
+    mirror: false,
+  },
+  lunge: {
+    assetId: "husky-exercise-sprites-v2",
+    sourceY: 0.735,
+    sourceHeight: 0.265,
+    mirror: false,
+  },
+  superman: {
+    assetId: "husky-exercise-sprites-v3",
+    sourceY: 0,
+    sourceHeight: 1 / 3,
+    mirror: false,
+  },
+  "close-grip-push-up": {
+    assetId: "husky-exercise-sprites-v3",
+    sourceY: 1 / 3,
+    sourceHeight: 1 / 3,
+    mirror: false,
+  },
+  "mountain-climber": {
+    assetId: "husky-exercise-sprites-v3",
+    sourceY: 2 / 3,
+    sourceHeight: 1 / 3,
+    mirror: false,
+  },
 };
 
 const SQUAT: DemoPosePair = {
@@ -161,11 +206,29 @@ const LUNGE: DemoPosePair = {
   ],
 };
 
-const DEMO_POSES: Record<ExerciseId, DemoPosePair> = {
+const SUPERMAN: DemoPosePair = {
+  start: PUSH_UP.start,
+  end: PUSH_UP.end,
+};
+
+const CLOSE_GRIP_PUSH_UP: DemoPosePair = {
+  start: PUSH_UP.start,
+  end: PUSH_UP.end,
+};
+
+const MOUNTAIN_CLIMBER: DemoPosePair = {
+  start: PUSH_UP.start,
+  end: PUSH_UP.end,
+};
+
+const DEMO_POSES: Record<CatalogExerciseId, DemoPosePair> = {
   squat: SQUAT,
   "push-up": PUSH_UP,
   "jumping-jack": JUMPING_JACK,
   lunge: LUNGE,
+  superman: SUPERMAN,
+  "close-grip-push-up": CLOSE_GRIP_PUSH_UP,
+  "mountain-climber": MOUNTAIN_CLIMBER,
 };
 
 function buildLandmarks(joints: readonly DemoJoint[]): PosePoint[] {
@@ -178,6 +241,103 @@ function buildLandmarks(joints: readonly DemoJoint[]): PosePoint[] {
     landmarks[index] = { x, y, visibility: 1 };
   }
   return landmarks;
+}
+
+function createBuiltInMotionProject(
+  exerciseId: CatalogExerciseId,
+  pose: DemoPosePair,
+  classificationExerciseId?: ExerciseId,
+): MotionProject {
+  const durationMs = 2_800;
+  const start = buildLandmarks(pose.start);
+  const end = buildLandmarks(pose.end);
+  const endClassification = classificationExerciseId
+    ? classifyPose(classificationExerciseId, {
+        landmarks: end,
+        size: { width: 1_000, height: 1_000 },
+        timestamp: durationMs / 2,
+      })
+    : null;
+  const crop = EXERCISE_DEMO_SPRITE_CROPS[exerciseId];
+
+  return {
+    schemaVersion: 1,
+    name: `${exerciseId}-motion`,
+    durationMs,
+    easing: "ease-in-out",
+    loop: true,
+    canvas: { width: 720, height: 720 },
+    reference: { exerciseId, visible: true, opacity: 0.94 },
+    character: {
+      renderer: "sprite-frames",
+      assetId: crop.assetId,
+    },
+    display: { skeleton: true, joints: true, angles: true },
+    skeleton: {
+      connections: POSE_CONNECTIONS.map(([startIndex, endIndex]) => [
+        startIndex,
+        endIndex,
+      ]),
+    },
+    keyframes: [
+      {
+        id: `${exerciseId}-start`,
+        name: "起始",
+        timeMs: 0,
+        referenceFrame: 0,
+        points: start,
+      },
+      {
+        id: `${exerciseId}-effort`,
+        name: "发力",
+        timeMs: durationMs / 2,
+        referenceFrame: 1,
+        points: end,
+      },
+      {
+        id: `${exerciseId}-return`,
+        name: "回位",
+        timeMs: durationMs,
+        referenceFrame: 0,
+        points: buildLandmarks(pose.start),
+      },
+    ],
+    annotations: (endClassification?.angleOverlays ?? []).map((overlay) => ({
+      id: overlay.id,
+      label: overlay.id,
+      startIndex: overlay.startIndex,
+      vertexIndex: overlay.vertexIndex,
+      endIndex: overlay.endIndex,
+      radius: 0.055,
+      labelOffset: { x: 0, y: 0 },
+    })),
+  };
+}
+
+const BUILT_IN_EXERCISE_MOTIONS: Record<CatalogExerciseId, MotionProject> = {
+  squat: createBuiltInMotionProject("squat", SQUAT, "squat"),
+  "push-up": createBuiltInMotionProject("push-up", PUSH_UP, "push-up"),
+  "jumping-jack": createBuiltInMotionProject(
+    "jumping-jack",
+    JUMPING_JACK,
+    "jumping-jack",
+  ),
+  lunge: createBuiltInMotionProject("lunge", LUNGE, "lunge"),
+  superman: createBuiltInMotionProject("superman", SUPERMAN),
+  "close-grip-push-up": createBuiltInMotionProject(
+    "close-grip-push-up",
+    CLOSE_GRIP_PUSH_UP,
+  ),
+  "mountain-climber": createBuiltInMotionProject(
+    "mountain-climber",
+    MOUNTAIN_CLIMBER,
+  ),
+};
+
+export function getBuiltInExerciseDemoProject(
+  exerciseId: CatalogExerciseId,
+): MotionProject {
+  return BUILT_IN_EXERCISE_MOTIONS[exerciseId];
 }
 
 export function getExerciseDemoPoseAmount(progress: number): number {

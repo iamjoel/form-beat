@@ -1,18 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  getExerciseCatalogEntry,
+  type CatalogExerciseId,
+} from "@workout-detect/core/domain/exercise-catalog";
+import {
   getExercise,
   type ExerciseId,
 } from "@workout-detect/core/domain/exercises";
 import {
-  EXERCISE_DEMO_SPRITE_CROPS,
   getExerciseDemoCriticalMarkup,
-  getExerciseDemoFrame,
-  getExerciseDemoKeyframe,
-  type ExerciseDemoFrame,
+  type HuskySpriteAssetId,
 } from "@workout-detect/core/lib/exercise-demo";
+import { getExerciseDemoProject } from "@workout-detect/core/lib/exercise-demo-project";
 import type { PosePoint } from "@workout-detect/core/lib/geometry";
+import {
+  getMotionFrame,
+  type MotionFrame,
+  type MotionProject,
+} from "@workout-detect/core/lib/motion-project";
 import type { PoseAngleOverlay } from "@workout-detect/core/lib/rep-counter";
 import huskySpriteUrl from "@workout-detect/core/assets/husky-exercise-sprites-v2.png";
+import huskySpriteV3Url from "@workout-detect/core/assets/husky-exercise-sprites-v3.png";
+import {
+  createHuskySpriteRenderer,
+  type DemoCharacterRenderer,
+} from "../lib/demo-character-renderer";
 
 interface ExerciseDemoScreenProps {
   exerciseId: ExerciseId;
@@ -24,8 +36,6 @@ interface CanvasPoint {
   x: number;
   y: number;
 }
-
-const DEMO_DURATION_MS = 2_800;
 
 function canvasPoint(
   landmarks: readonly PosePoint[],
@@ -52,42 +62,6 @@ function drawLine(
   context.lineWidth = lineWidth;
   context.strokeStyle = color;
   context.stroke();
-}
-
-function drawHuskySprite(
-  context: CanvasRenderingContext2D,
-  sprite: HTMLImageElement,
-  exerciseId: ExerciseId,
-  keyframe: 0 | 1,
-  width: number,
-  height: number,
-): void {
-  const sourceWidth = sprite.naturalWidth / 2;
-  const crop = EXERCISE_DEMO_SPRITE_CROPS[exerciseId];
-  const sourceY = crop.sourceY * sprite.naturalHeight;
-  const sourceHeight = Math.min(
-    crop.sourceHeight * sprite.naturalHeight,
-    sprite.naturalHeight - sourceY,
-  );
-  context.save();
-  context.imageSmoothingEnabled = true;
-  context.imageSmoothingQuality = "high";
-  if (crop.mirror) {
-    context.translate(width, 0);
-    context.scale(-1, 1);
-  }
-  context.drawImage(
-    sprite,
-    keyframe * sourceWidth,
-    sourceY,
-    sourceWidth,
-    sourceHeight,
-    0,
-    0,
-    width,
-    height,
-  );
-  context.restore();
 }
 
 function shortestAngleSweep(start: number, end: number): number {
@@ -148,10 +122,9 @@ function drawAngleOverlay(
 
 function drawDemo(
   context: CanvasRenderingContext2D,
-  frame: ExerciseDemoFrame,
-  sprite: HTMLImageElement | null,
-  exerciseId: ExerciseId,
-  keyframe: 0 | 1,
+  project: MotionProject,
+  frame: MotionFrame,
+  characterRenderer: DemoCharacterRenderer | null,
   width: number,
   height: number,
 ): void {
@@ -160,40 +133,46 @@ function drawDemo(
   context.fillStyle = "#e9eadf";
   context.fillRect(0, 0, width, height);
 
-  if (sprite) {
-    drawHuskySprite(context, sprite, exerciseId, keyframe, width, height);
+  if (project.reference.visible && characterRenderer) {
+    characterRenderer.draw(context, project, frame, width, height);
   }
   context.save();
   context.lineCap = "round";
   context.lineJoin = "round";
   const criticalMarkup = getExerciseDemoCriticalMarkup(frame.angleOverlays);
-  for (const [startIndex, endIndex] of criticalMarkup.segments) {
-    const start = canvasPoint(frame.landmarks, startIndex, width, height);
-    const end = canvasPoint(frame.landmarks, endIndex, width, height);
-    if (!start || !end) continue;
-    drawLine(context, [start, end], "rgb(14 15 13 / 82%)", unit * 0.024);
-    drawLine(context, [start, end], "#c8ef3f", unit * 0.011);
+  if (project.display.skeleton) {
+    for (const [startIndex, endIndex] of criticalMarkup.segments) {
+      const start = canvasPoint(frame.landmarks, startIndex, width, height);
+      const end = canvasPoint(frame.landmarks, endIndex, width, height);
+      if (!start || !end) continue;
+      drawLine(context, [start, end], "rgb(14 15 13 / 82%)", unit * 0.024);
+      drawLine(context, [start, end], "#c8ef3f", unit * 0.011);
+    }
   }
 
-  for (const pointIndex of criticalMarkup.pointIndices) {
-    const point = frame.landmarks[pointIndex];
-    if (!point || (point.visibility ?? 0) < 0.5) continue;
-    context.beginPath();
-    context.arc(point.x * width, point.y * height, unit * 0.014, 0, Math.PI * 2);
-    context.fillStyle = "#e65d43";
-    context.fill();
-    context.lineWidth = unit * 0.006;
-    context.strokeStyle = "#f7f7f2";
-    context.stroke();
+  if (project.display.joints) {
+    for (const pointIndex of criticalMarkup.pointIndices) {
+      const point = frame.landmarks[pointIndex];
+      if (!point || (point.visibility ?? 0) < 0.5) continue;
+      context.beginPath();
+      context.arc(point.x * width, point.y * height, unit * 0.014, 0, Math.PI * 2);
+      context.fillStyle = "#e65d43";
+      context.fill();
+      context.lineWidth = unit * 0.006;
+      context.strokeStyle = "#f7f7f2";
+      context.stroke();
+    }
   }
 
-  for (const overlay of frame.angleOverlays) {
-    drawAngleOverlay(context, frame.landmarks, overlay, width, height);
+  if (project.display.angles) {
+    for (const overlay of frame.angleOverlays) {
+      drawAngleOverlay(context, frame.landmarks, overlay, width, height);
+    }
   }
   context.restore();
 }
 
-function useExerciseDemoCanvas(exerciseId: ExerciseId) {
+function useExerciseDemoCanvas(exerciseId: CatalogExerciseId) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -201,16 +180,23 @@ function useExerciseDemoCanvas(exerciseId: ExerciseId) {
     if (!canvas) return;
     const context = canvas.getContext("2d");
     if (!context) return;
+    const project = getExerciseDemoProject(exerciseId);
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const startedAt = performance.now();
-    const sprite = new Image();
-    let loadedSprite: HTMLImageElement | null = null;
+    const sprites: Partial<Record<HuskySpriteAssetId, HTMLImageElement>> = {};
+    const characterRenderer: DemoCharacterRenderer = createHuskySpriteRenderer(sprites);
     let animationFrame = 0;
-    sprite.decoding = "async";
-    sprite.onload = () => {
-      loadedSprite = sprite;
-    };
-    sprite.src = huskySpriteUrl;
+    for (const [assetId, url] of [
+      ["husky-exercise-sprites-v2", huskySpriteUrl],
+      ["husky-exercise-sprites-v3", huskySpriteV3Url],
+    ] as const) {
+      const sprite = new Image();
+      sprite.decoding = "async";
+      sprite.onload = () => {
+        sprites[assetId] = sprite;
+      };
+      sprite.src = url;
+    }
 
     const render = (timestamp: number) => {
       const bounds = canvas.getBoundingClientRect();
@@ -222,14 +208,14 @@ function useExerciseDemoCanvas(exerciseId: ExerciseId) {
         canvas.height = pixelHeight;
       }
       context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
-      const progress = reduceMotion ? 0.5 : (timestamp - startedAt) / DEMO_DURATION_MS;
-      const keyframe = getExerciseDemoKeyframe(progress);
+      const elapsedMs = reduceMotion
+        ? project.durationMs / 2
+        : timestamp - startedAt;
       drawDemo(
         context,
-        getExerciseDemoFrame(exerciseId, keyframe === 0 ? 0 : 0.5),
-        loadedSprite,
-        exerciseId,
-        keyframe,
+        project,
+        getMotionFrame(project, elapsedMs),
+        characterRenderer,
         bounds.width,
         bounds.height,
       );
@@ -241,6 +227,25 @@ function useExerciseDemoCanvas(exerciseId: ExerciseId) {
   }, [exerciseId]);
 
   return canvasRef;
+}
+
+export function ExerciseDemoCanvas({
+  exerciseId,
+  className = "demo-canvas",
+}: {
+  exerciseId: CatalogExerciseId;
+  className?: string;
+}) {
+  const canvasRef = useExerciseDemoCanvas(exerciseId);
+  const exercise = getExerciseCatalogEntry(exerciseId);
+  return (
+    <canvas
+      ref={canvasRef}
+      className={className}
+      role="img"
+      aria-label={`哈士奇正在演示${exercise.label}`}
+    />
+  );
 }
 
 function BackIcon() {
@@ -258,7 +263,6 @@ export function ExerciseDemoScreen({
 }: ExerciseDemoScreenProps) {
   const exercise = getExercise(exerciseId);
   const [skipNextTime, setSkipNextTime] = useState(false);
-  const canvasRef = useExerciseDemoCanvas(exerciseId);
 
   return (
     <main className="demo-screen">
@@ -275,12 +279,7 @@ export function ExerciseDemoScreen({
 
       <section className="demo-content" aria-label={`${exercise.label}动作演示`}>
         <div className="demo-canvas-frame">
-          <canvas
-            ref={canvasRef}
-            className="demo-canvas"
-            role="img"
-            aria-label={`哈士奇正在演示${exercise.label}，画面标有训练时使用的骨骼点和关键角度`}
-          />
+          <ExerciseDemoCanvas exerciseId={exerciseId} />
         </div>
 
         <label className="demo-skip">

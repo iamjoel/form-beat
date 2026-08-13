@@ -5,6 +5,7 @@ import type { CompletionStats } from "@workout-detect/core/domain/session";
 import { CompletionScreen } from "./components/CompletionScreen";
 import { ProfileScreen } from "./components/ProfileScreen";
 import { SetupScreen } from "./components/SetupScreen";
+import type { MainNavDestination } from "./components/MainNav";
 import type { AvatarId } from "./domain/records";
 import { primeAudio, primeSpeechSynthesis } from "./lib/audio";
 import type { CompletedRecording } from "./lib/session-recorder";
@@ -28,8 +29,20 @@ const FitnessScreen = lazy(() =>
     default: module.FitnessScreen,
   })),
 );
+const ExerciseLibraryScreen = lazy(() =>
+  import("./components/ExerciseLibraryScreen").then((module) => ({
+    default: module.ExerciseLibraryScreen,
+  })),
+);
 
-type AppView = "fitness" | "setup" | "profile" | "demo" | "workout" | "complete";
+type AppView =
+  | "fitness"
+  | "exercises"
+  | "setup"
+  | "profile"
+  | "demo"
+  | "workout"
+  | "complete";
 
 const initialExercise = EXERCISES[0];
 const AVATAR_STORAGE_KEY = "workout-detect:recording-avatar:v1";
@@ -103,7 +116,12 @@ export function App() {
   const saveTokenRef = useRef(0);
 
   useEffect(() => {
-    if (view === "fitness" || view === "setup" || view === "profile") {
+    if (
+      view === "fitness" ||
+      view === "exercises" ||
+      view === "setup" ||
+      view === "profile"
+    ) {
       window.scrollTo({ top: 0, left: 0 });
     }
   }, [view]);
@@ -115,6 +133,10 @@ export function App() {
     if (nextExercise) {
       setTarget(nextExercise.defaultTarget);
     }
+  };
+
+  const handleMainNavigation = (destination: MainNavDestination) => {
+    setView(destination === "workout" ? "setup" : destination);
   };
 
   const beginWorkout = () => {
@@ -255,7 +277,21 @@ export function App() {
     return (
       <Suspense fallback={<RecordsLoading />}>
         <FitnessScreen
-          onNavigate={(destination) => setView(destination === "workout" ? "setup" : "profile")}
+          onNavigate={handleMainNavigation}
+        />
+      </Suspense>
+    );
+  }
+
+  if (view === "exercises") {
+    return (
+      <Suspense fallback={<CatalogLoading />}>
+        <ExerciseLibraryScreen
+          onNavigate={handleMainNavigation}
+          onStartExercise={(nextExerciseId) => {
+            handleExerciseChange(nextExerciseId);
+            setView("setup");
+          }}
         />
       </Suspense>
     );
@@ -270,7 +306,7 @@ export function App() {
         onUsernameChange={(username) => updateProfile({ username })}
         onProfileImageChange={(image) => updateProfile({ image })}
         onRecordingAvatarChange={handleAvatarChange}
-        onNavigate={(destination) => setView(destination === "workout" ? "setup" : "fitness")}
+        onNavigate={handleMainNavigation}
       />
     );
   }
@@ -282,6 +318,7 @@ export function App() {
       onExerciseChange={handleExerciseChange}
       onTargetChange={setTarget}
       onOpenFitness={() => setView("fitness")}
+      onOpenExercises={() => setView("exercises")}
       onOpenProfile={() => setView("profile")}
       onStart={handleStart}
     />
@@ -311,6 +348,15 @@ function DemoLoading() {
     <main className="route-loading route-loading--light" aria-live="polite" aria-busy="true">
       <span className="loading-spinner" aria-hidden="true" />
       <p>正在准备动作演示</p>
+    </main>
+  );
+}
+
+function CatalogLoading() {
+  return (
+    <main className="route-loading route-loading--light" aria-live="polite" aria-busy="true">
+      <span className="loading-spinner" aria-hidden="true" />
+      <p>正在读取动作</p>
     </main>
   );
 }

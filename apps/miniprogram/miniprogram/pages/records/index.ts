@@ -146,6 +146,10 @@ Page({
     wx.redirectTo({ url: "/pages/setup/index" });
   },
 
+  openActions() {
+    wx.redirectTo({ url: "/pages/actions/index" });
+  },
+
   openProfile() {
     wx.redirectTo({ url: "/pages/profile/index" });
   },

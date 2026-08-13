@@ -13,6 +13,7 @@ The Admin API stores a complete `MotionProject` JSON object in SQLite. The curre
 | `loop` | boolean | Repeat during playback/export |
 | `canvas` | `{ width, height }` | Source canvas dimensions |
 | `reference` | object | Exercise ID, visibility, and opacity |
+| `character` | object, optional | Renderer (`sprite-frames` or `layered-rig`) and asset ID |
 | `display` | object | Skeleton, joints, and angle visibility |
 | `skeleton.connections` | `[number, number][]` | Active joint segments |
 | `keyframes` | array | One or more pose keyframes |
@@ -30,3 +31,7 @@ Removed skeleton connections remain absent from `skeleton.connections`. A joint 
 - `PUT /api/motions/:id`: replace project and optionally update status.
 
 Supported starter exercise IDs are `squat`, `push-up`, `jumping-jack`, and `lunge`.
+
+Ready projects can be compiled into the shared client motion registry with
+`pnpm motion:publish`. For each exercise ID, the most recently updated ready
+project wins; clients fall back to the built-in project when none is ready.

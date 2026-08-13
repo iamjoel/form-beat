@@ -2,12 +2,12 @@ import {
   EXERCISES,
   type ExerciseId,
 } from "../../shared/core/domain/exercises";
+import { getExerciseDemoProject } from "../../shared/core/lib/exercise-demo-project";
+import { getMotionFrame } from "../../shared/core/lib/motion-project";
 import {
-  getExerciseDemoFrame,
-  getExerciseDemoKeyframe,
-} from "../../shared/core/lib/exercise-demo";
-import {
+  createHuskySpriteRenderer,
   drawExerciseDemo,
+  type DemoCharacterRenderer,
   type DemoRenderSize,
   type DemoSpriteImage,
 } from "../../lib/exercise-demo-renderer";
@@ -15,7 +15,6 @@ import {
 const PREFERENCES_KEY = "workout-detect:preferences:v1";
 const DEMO_DISMISSED_STORAGE_KEY = "workout-detect:exercise-demo-dismissed:v1";
 const DEMO_SPRITE_PATH = "/assets/generated/husky-exercise-sprites-v2.png";
-const DEMO_DURATION_MS = 2_800;
 const MIN_TARGET = 1;
 const MAX_TARGET = 99;
 
@@ -38,7 +37,7 @@ interface SetupPageInstance {
   demoCanvasNode?: CanvasNodeResult["node"];
   demoCanvasContext?: CanvasRenderingContext2D;
   demoCanvasSize?: DemoRenderSize;
-  demoSprite?: DemoSpriteImage;
+  demoCharacterRenderer?: DemoCharacterRenderer;
   demoAnimationTimer?: ReturnType<typeof setInterval>;
   demoAnimationStartedAt?: number;
   startDemoAnimation(): void;
@@ -163,25 +162,19 @@ Page({
       this.demoCanvasContext = context;
       this.demoCanvasSize = { width: result.width, height: result.height };
       this.demoAnimationStartedAt = Date.now();
+      const project = getExerciseDemoProject(this.data.exerciseId);
 
       const render = () => {
         if (!this.data.showDemo || !this.demoCanvasContext || !this.demoCanvasSize) {
           return;
         }
-        const progress =
-          (Date.now() - (this.demoAnimationStartedAt ?? Date.now())) /
-          DEMO_DURATION_MS;
-        const keyframe = getExerciseDemoKeyframe(progress);
+        const elapsedMs = Date.now() - (this.demoAnimationStartedAt ?? Date.now());
         drawExerciseDemo(
           this.demoCanvasContext,
-          getExerciseDemoFrame(
-            this.data.exerciseId,
-            keyframe === 0 ? 0 : 0.5,
-          ),
+          project,
+          getMotionFrame(project, elapsedMs),
           this.demoCanvasSize,
-          this.demoSprite ?? null,
-          this.data.exerciseId,
-          keyframe,
+          this.demoCharacterRenderer ?? null,
         );
       };
 
@@ -194,7 +187,9 @@ Page({
       };
       const sprite = result.node.createImage() as DemoSpriteImage;
       sprite.onload = () => {
-        this.demoSprite = sprite;
+        this.demoCharacterRenderer = createHuskySpriteRenderer({
+          "husky-exercise-sprites-v2": sprite,
+        });
         startRendering();
       };
       sprite.onerror = startRendering;
@@ -208,7 +203,7 @@ Page({
     this.demoCanvasNode = undefined;
     this.demoCanvasContext = undefined;
     this.demoCanvasSize = undefined;
-    this.demoSprite = undefined;
+    this.demoCharacterRenderer = undefined;
   },
 
   changeDemoPreference(
@@ -239,6 +234,10 @@ Page({
 
   openFitness() {
     wx.navigateTo({ url: "/pages/records/index" });
+  },
+
+  openActions() {
+    wx.redirectTo({ url: "/pages/actions/index" });
   },
 
   openProfile() {

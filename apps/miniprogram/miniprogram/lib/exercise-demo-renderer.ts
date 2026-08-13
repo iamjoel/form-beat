@@ -1,10 +1,13 @@
 import {
   EXERCISE_DEMO_SPRITE_CROPS,
   getExerciseDemoCriticalMarkup,
-  type ExerciseDemoFrame,
+  type HuskySpriteAssetId,
 } from "../shared/core/lib/exercise-demo";
-import type { ExerciseId } from "../shared/core/domain/exercises";
 import type { PosePoint } from "../shared/core/lib/geometry";
+import type {
+  MotionFrame,
+  MotionProject,
+} from "../shared/core/lib/motion-project";
 import type { PoseAngleOverlay } from "../shared/core/lib/rep-counter";
 
 export interface DemoRenderSize {
@@ -13,6 +16,15 @@ export interface DemoRenderSize {
 }
 
 export type DemoSpriteImage = HTMLImageElement;
+
+export interface DemoCharacterRenderer {
+  draw(
+    context: CanvasRenderingContext2D,
+    project: MotionProject,
+    frame: MotionFrame,
+    size: DemoRenderSize,
+  ): void;
+}
 
 interface CanvasPoint {
   x: number;
@@ -45,38 +57,44 @@ function drawLine(
   context.stroke();
 }
 
-function drawHuskySprite(
-  context: CanvasRenderingContext2D,
-  sprite: DemoSpriteImage,
-  exerciseId: ExerciseId,
-  keyframe: 0 | 1,
-  size: DemoRenderSize,
-): void {
-  const sourceWidth = sprite.width / 2;
-  const crop = EXERCISE_DEMO_SPRITE_CROPS[exerciseId];
-  const sourceY = crop.sourceY * sprite.height;
-  const sourceHeight = Math.min(
-    crop.sourceHeight * sprite.height,
-    sprite.height - sourceY,
-  );
-  context.save();
-  context.imageSmoothingEnabled = true;
-  if (crop.mirror) {
-    context.translate(size.width, 0);
-    context.scale(-1, 1);
-  }
-  context.drawImage(
-    sprite,
-    keyframe * sourceWidth,
-    sourceY,
-    sourceWidth,
-    sourceHeight,
-    0,
-    0,
-    size.width,
-    size.height,
-  );
-  context.restore();
+export function createHuskySpriteRenderer(
+  sprites: Partial<Record<HuskySpriteAssetId, DemoSpriteImage>>,
+): DemoCharacterRenderer {
+  return {
+    draw(context, project, frame, size) {
+      const character = project.character;
+      if (character?.renderer === "layered-rig") return;
+      const crop = EXERCISE_DEMO_SPRITE_CROPS[project.reference.exerciseId];
+      if (character?.assetId && character.assetId !== crop.assetId) return;
+      const sprite = sprites[crop.assetId];
+      if (!sprite) return;
+      const sourceWidth = sprite.width / 2;
+      const sourceY = crop.sourceY * sprite.height;
+      const sourceHeight = Math.min(
+        crop.sourceHeight * sprite.height,
+        sprite.height - sourceY,
+      );
+      context.save();
+      context.globalAlpha = project.reference.opacity;
+      context.imageSmoothingEnabled = true;
+      if (crop.mirror) {
+        context.translate(size.width, 0);
+        context.scale(-1, 1);
+      }
+      context.drawImage(
+        sprite,
+        frame.referenceFrame * sourceWidth,
+        sourceY,
+        sourceWidth,
+        sourceHeight,
+        0,
+        0,
+        size.width,
+        size.height,
+      );
+      context.restore();
+    },
+  };
 }
 
 function shortestAngleSweep(start: number, end: number): number {
@@ -133,43 +151,48 @@ function drawAngleOverlay(
 
 export function drawExerciseDemo(
   context: CanvasRenderingContext2D,
-  frame: ExerciseDemoFrame,
+  project: MotionProject,
+  frame: MotionFrame,
   size: DemoRenderSize,
-  sprite: DemoSpriteImage | null,
-  exerciseId: ExerciseId,
-  keyframe: 0 | 1,
+  characterRenderer: DemoCharacterRenderer | null,
 ): void {
   const unit = Math.min(size.width, size.height);
   context.clearRect(0, 0, size.width, size.height);
   context.fillStyle = "#e9eadf";
   context.fillRect(0, 0, size.width, size.height);
-  if (sprite) {
-    drawHuskySprite(context, sprite, exerciseId, keyframe, size);
+  if (project.reference.visible && characterRenderer) {
+    characterRenderer.draw(context, project, frame, size);
   }
   context.save();
   context.lineCap = "round";
   context.lineJoin = "round";
   const criticalMarkup = getExerciseDemoCriticalMarkup(frame.angleOverlays);
-  for (const [startIndex, endIndex] of criticalMarkup.segments) {
-    const start = canvasPoint(frame.landmarks, startIndex, size);
-    const end = canvasPoint(frame.landmarks, endIndex, size);
-    if (!start || !end) continue;
-    drawLine(context, [start, end], "rgba(14, 15, 13, 0.82)", unit * 0.024);
-    drawLine(context, [start, end], "#c8ef3f", unit * 0.011);
+  if (project.display.skeleton) {
+    for (const [startIndex, endIndex] of criticalMarkup.segments) {
+      const start = canvasPoint(frame.landmarks, startIndex, size);
+      const end = canvasPoint(frame.landmarks, endIndex, size);
+      if (!start || !end) continue;
+      drawLine(context, [start, end], "rgba(14, 15, 13, 0.82)", unit * 0.024);
+      drawLine(context, [start, end], "#c8ef3f", unit * 0.011);
+    }
   }
-  for (const pointIndex of criticalMarkup.pointIndices) {
-    const point = frame.landmarks[pointIndex];
-    if (!point || (point.visibility ?? 0) < 0.5) continue;
-    context.beginPath();
-    context.arc(point.x * size.width, point.y * size.height, unit * 0.014, 0, Math.PI * 2);
-    context.fillStyle = "#c8ef3f";
-    context.fill();
-    context.lineWidth = unit * 0.006;
-    context.strokeStyle = "rgba(14, 15, 13, 0.9)";
-    context.stroke();
+  if (project.display.joints) {
+    for (const pointIndex of criticalMarkup.pointIndices) {
+      const point = frame.landmarks[pointIndex];
+      if (!point || (point.visibility ?? 0) < 0.5) continue;
+      context.beginPath();
+      context.arc(point.x * size.width, point.y * size.height, unit * 0.014, 0, Math.PI * 2);
+      context.fillStyle = "#c8ef3f";
+      context.fill();
+      context.lineWidth = unit * 0.006;
+      context.strokeStyle = "rgba(14, 15, 13, 0.9)";
+      context.stroke();
+    }
   }
-  for (const overlay of frame.angleOverlays) {
-    drawAngleOverlay(context, frame.landmarks, overlay, size);
+  if (project.display.angles) {
+    for (const overlay of frame.angleOverlays) {
+      drawAngleOverlay(context, frame.landmarks, overlay, size);
+    }
   }
   context.restore();
 }

@@ -1,6 +1,8 @@
 {
   "pages": [
     "pages/setup/index",
+    "pages/actions/index",
+    "pages/action-detail/index",
     "pages/workout/index",
     "pages/records/index",
     "pages/fitness-detail/index",

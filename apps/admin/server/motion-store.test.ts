@@ -47,6 +47,9 @@ describe("SQLite motion store", () => {
     );
     expect(updated).toEqual(expect.objectContaining({ name: "深蹲节奏 B", status: "ready" }));
     expect(store.get(created.id)?.project.name).toBe("深蹲节奏 B");
+    expect(store.listReady()).toEqual([
+      expect.objectContaining({ id: created.id, status: "ready" }),
+    ]);
     store.close();
   });
 

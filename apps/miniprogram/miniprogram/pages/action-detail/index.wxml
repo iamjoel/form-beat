@@ -1,0 +1,51 @@
+<view class="action-detail-page">
+  <view class="detail-header">
+    <button class="detail-back" aria-label="返回动作列表" bindtap="goBack">‹</button>
+    <view class="detail-heading">
+      <text class="detail-meta">{{meta}}</text>
+      <text class="detail-title">{{label}}</text>
+    </view>
+  </view>
+
+  <view class="demo-section">
+    <view class="demo-accent"></view>
+    <canvas
+      id="action-demo-canvas"
+      class="action-demo-canvas"
+      type="2d"
+      aria-label="哈士奇正在演示{{label}}"
+    ></canvas>
+    <text class="demo-caption">哈士奇示范</text>
+  </view>
+
+  <view class="intro-section">
+    <view class="muscle-tags">
+      <text wx:for="{{muscleGroups}}" wx:key="id">{{item.label}}</text>
+    </view>
+    <text class="detail-summary">{{summary}}</text>
+  </view>
+
+  <view class="steps-section">
+    <text class="section-heading">怎么做</text>
+    <view class="steps-list">
+      <view wx:for="{{steps}}" wx:key="index" class="step-row">
+        <text>{{item.index}}</text>
+        <text>{{item.copy}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="cues-section">
+    <text class="section-heading">动作要点</text>
+    <view class="cue-list">
+      <view wx:for="{{cues}}" wx:key="*this" class="cue-row">
+        <view></view><text>{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="detail-action">
+    <button wx:if="{{canStartWorkout}}" bindtap="startWorkout">用这个动作开始训练</button>
+    <button wx:else disabled>动作识别即将开放</button>
+  </view>
+</view>

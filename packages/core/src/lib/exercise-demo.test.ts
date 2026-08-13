@@ -9,6 +9,10 @@ import {
   getExerciseDemoPoseAmount,
   POSE_CONNECTIONS,
 } from "./exercise-demo";
+import {
+  getExerciseDemoMotionFrame,
+  getExerciseDemoProject,
+} from "./exercise-demo-project";
 
 const EXPECTED_ANGLE_VERTICES: Record<ExerciseId, readonly number[]> = {
   squat: [25],
@@ -73,13 +77,41 @@ describe("exercise demo frames", () => {
   );
 
   it("provides synchronized sprite crops and keyframe timing", () => {
+    expect(Object.keys(EXERCISE_DEMO_SPRITE_CROPS)).toHaveLength(7);
     expect(Object.keys(EXERCISE_DEMO_SPRITE_CROPS)).toEqual(
-      Object.keys(EXPECTED_ANGLE_VERTICES),
+      expect.arrayContaining(Object.keys(EXPECTED_ANGLE_VERTICES)),
     );
+    for (const exerciseId of [
+      "superman",
+      "close-grip-push-up",
+      "mountain-climber",
+    ] as const) {
+      expect(getExerciseDemoProject(exerciseId)).toEqual(
+        expect.objectContaining({
+          reference: expect.objectContaining({ exerciseId }),
+          character: expect.objectContaining({
+            assetId: "husky-exercise-sprites-v3",
+          }),
+        }),
+      );
+    }
     expect(getExerciseDemoPoseAmount(0)).toBeCloseTo(0);
     expect(getExerciseDemoPoseAmount(0.5)).toBeCloseTo(1);
     expect(getExerciseDemoPoseAmount(1)).toBeCloseTo(0);
     expect(getExerciseDemoKeyframe(0)).toBe(0);
     expect(getExerciseDemoKeyframe(0.5)).toBe(1);
+  });
+
+  it("evaluates client demos from continuous multi-keyframe projects", () => {
+    const project = getExerciseDemoProject("squat");
+    const start = getExerciseDemoMotionFrame("squat", 0);
+    const between = getExerciseDemoMotionFrame("squat", project.durationMs / 4);
+    const effort = getExerciseDemoMotionFrame("squat", project.durationMs / 2);
+
+    expect(project.keyframes).toHaveLength(3);
+    expect(between.landmarks[25].x).toBeGreaterThan(start.landmarks[25].x);
+    expect(between.landmarks[25].x).toBeLessThan(effort.landmarks[25].x);
+    expect(between.angleOverlays).toHaveLength(1);
+    expect(between.referenceFrame).toBe(1);
   });
 });

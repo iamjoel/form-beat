@@ -16,10 +16,14 @@ packages/
 - Web 端继续使用 MediaPipe 的 33 个关键点，并通过 Web Worker 执行逐帧推理。
 - 小程序使用微信 VisionKit 的 23 点人体识别结果，由适配层转换为计数核心需要的关键点布局。
 - 小程序训练页会实时显示 Canvas 骨架，但录像直接来自 `CameraContext`，因此只包含原始相机画面，不包含骨架、计数 UI 或麦克风声音。
+- Web 与小程序均提供“动作”一级导航，按胸部、背部、肩部、手臂、核心、臀部和腿部七大肌群筛选自重动作；动作详情复用同一份哈士奇演示数据。
 
 ## 动作演示
 
-演示只标出动作中需要注意的关键点和角度，与 Web 和小程序使用同一份动作数据。
+演示只标出动作中需要注意的关键点和角度。Web 和小程序共享同一份
+`MotionProject` 多关键帧数据，按时间轴连续补间 33 个姿态点；Admin 中发布的
+动作会生成到 `packages/core/src/generated/published-exercise-motions.ts`，未发布的
+动作继续使用仓库内置版本。
 
 <table>
   <tr>
@@ -56,6 +60,7 @@ pnpm test        # 运行共享核心、Web 与 Admin 测试
 pnpm build       # 构建 Web、Admin，并生成小程序使用的共享核心
 pnpm admin:dev   # 启动动作编辑器
 pnpm admin:build # 单独构建动作编辑器
+pnpm motion:publish # 将 SQLite 中已发布动作生成到共享核心
 pnpm mini:check  # 同步共享核心并检查小程序 TypeScript
 pnpm preview     # 预览 Web 构建产物
 ```

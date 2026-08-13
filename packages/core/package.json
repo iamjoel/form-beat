@@ -3,11 +3,15 @@
   "private": true,
   "version": "0.2.0",
   "exports": {
+    "./domain/exercise-catalog": "./src/domain/exercise-catalog.ts",
     "./assets/husky-exercise-sprites-v2.png": "./assets/husky-exercise-sprites-v2.png",
+    "./assets/husky-exercise-sprites-v3.png": "./assets/husky-exercise-sprites-v3.png",
     "./domain/exercises": "./src/domain/exercises.ts",
     "./domain/session": "./src/domain/session.ts",
     "./lib/exercise-demo": "./src/lib/exercise-demo.ts",
+    "./lib/exercise-demo-project": "./src/lib/exercise-demo-project.ts",
     "./lib/geometry": "./src/lib/geometry.ts",
+    "./lib/motion-project": "./src/lib/motion-project.ts",
     "./lib/rep-counter": "./src/lib/rep-counter.ts"
   },
   "scripts": {

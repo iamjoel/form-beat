@@ -1,0 +1,67 @@
+<view class="actions-page">
+  <scroll-view class="actions-scroll" scroll-y enhanced show-scrollbar="false">
+    <view class="actions-content">
+      <view class="actions-header">
+        <view>
+          <text class="actions-title">动作</text>
+          <text class="actions-subtitle">按七大肌群找到自重动作</text>
+        </view>
+        <text class="actions-count">{{total}} 个自重动作</text>
+      </view>
+
+      <scroll-view class="muscle-filter" scroll-x enhanced show-scrollbar="false">
+        <view class="muscle-filter-row">
+          <button
+            wx:for="{{filters}}"
+            wx:key="id"
+            class="muscle-filter-button {{item.active ? 'muscle-filter-button--active' : ''}}"
+            data-id="{{item.id}}"
+            aria-label="按{{item.label}}筛选"
+            bindtap="selectMuscle"
+          >{{item.label}}</button>
+        </view>
+      </scroll-view>
+
+      <text wx:if="{{focus}}" class="muscle-focus">{{focus}}</text>
+
+      <view wx:if="{{rows.length > 0}}" class="action-list">
+        <button
+          wx:for="{{rows}}"
+          wx:key="id"
+          class="action-row"
+          data-id="{{item.id}}"
+          aria-label="查看{{item.label}}详情"
+          bindtap="openAction"
+        >
+          <text class="action-index">{{item.index}}</text>
+          <view class="action-copy">
+            <text class="action-name">{{item.label}}</text>
+            <text class="action-meta">{{item.meta}}</text>
+          </view>
+          <view class="action-arrow">→</view>
+        </button>
+      </view>
+
+      <view wx:else class="actions-empty">
+        <text class="empty-mark">—</text>
+        <text class="empty-title">这组动作正在校准</text>
+        <text class="empty-copy">先从其他肌群开始，完成识别测试后会在这里出现。</text>
+      </view>
+    </view>
+  </scroll-view>
+
+  <view class="main-nav actions-nav">
+    <button class="nav-button" aria-label="体能" bindtap="openFitness">
+      <view class="nav-glyph nav-glyph--calendar"></view><text>体能</text>
+    </button>
+    <button class="nav-button nav-button--active" aria-label="动作，当前页面">
+      <view class="nav-glyph nav-glyph--actions"></view><text>动作</text>
+    </button>
+    <button class="nav-button" aria-label="锻炼" bindtap="openWorkout">
+      <view class="nav-glyph nav-glyph--workout"></view><text>锻炼</text>
+    </button>
+    <button class="nav-button" aria-label="个人" bindtap="openProfile">
+      <view class="nav-glyph nav-glyph--profile"></view><text>个人</text>
+    </button>
+  </view>
+</view>

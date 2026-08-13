@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import type { MotionProject } from "../src/lib/editor-model.ts";
+import { publishReadyMotions } from "./motion-publisher.ts";
 import { MotionStore, type MotionStatus } from "./motion-store.ts";
 import { createStarterMotionProject } from "./project-template.ts";
 
@@ -9,6 +10,7 @@ type NextFunction = (error?: unknown) => void;
 
 interface MotionApiOptions {
   databasePath: string;
+  publishedModulePath?: string;
 }
 
 interface CreateMotionBody {
@@ -94,7 +96,7 @@ function parseProject(value: unknown): MotionProject {
   return project as MotionProject;
 }
 
-export function createMotionApi({ databasePath }: MotionApiOptions) {
+export function createMotionApi({ databasePath, publishedModulePath }: MotionApiOptions) {
   const store = new MotionStore(databasePath);
 
   const middleware = (request: IncomingMessage, response: ServerResponse, next: NextFunction) => {
@@ -121,6 +123,22 @@ export function createMotionApi({ databasePath }: MotionApiOptions) {
           return;
         }
 
+        const publishMatch = url.pathname.match(/^\/api\/motions\/([^/]+)\/publish$/);
+        if (publishMatch && request.method === "POST") {
+          if (!publishedModulePath) throw new Error("未配置客户端动作发布路径");
+          const id = decodeURIComponent(publishMatch[1]);
+          const body = await readJson(request) as CreateMotionBody;
+          const project = parseProject(body.project);
+          const motion = store.update(id, project, "ready");
+          if (!motion) {
+            sendJson(response, 404, { error: "动作不存在" });
+            return;
+          }
+          const publication = publishReadyMotions(store, publishedModulePath);
+          sendJson(response, 200, { motion, publication });
+          return;
+        }
+
         const detailMatch = url.pathname.match(/^\/api\/motions\/([^/]+)$/);
         if (detailMatch) {
           const id = decodeURIComponent(detailMatch[1]);
@@ -132,7 +150,11 @@ export function createMotionApi({ databasePath }: MotionApiOptions) {
           if (request.method === "PUT") {
             const body = await readJson(request) as CreateMotionBody;
             const project = parseProject(body.project);
-            const motion = store.update(id, project, parseStatus(body.status));
+            const status = parseStatus(body.status);
+            const motion = store.update(id, project, status);
+            if (status && publishedModulePath) {
+              publishReadyMotions(store, publishedModulePath);
+            }
             sendJson(response, motion ? 200 : 404, motion ? { motion } : { error: "动作不存在" });
             return;
           }

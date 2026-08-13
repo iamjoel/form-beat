@@ -5,17 +5,21 @@ import { createMotionApi } from "./server/motion-api.ts";
 
 const databasePath = process.env.FORM_BEAT_ADMIN_DB_PATH
   ?? fileURLToPath(new URL("./data/motions.sqlite", import.meta.url));
+const publishedModulePath = fileURLToPath(new URL(
+  "../../packages/core/src/generated/published-exercise-motions.ts",
+  import.meta.url,
+));
 
 function motionApiPlugin() {
   return {
     name: "form-beat-motion-api",
     configureServer(server: { middlewares: { use: (handler: unknown) => void }; httpServer: { once: (event: string, callback: () => void) => void } | null }) {
-      const api = createMotionApi({ databasePath });
+      const api = createMotionApi({ databasePath, publishedModulePath });
       server.middlewares.use(api.middleware);
       server.httpServer?.once("close", api.close);
     },
     configurePreviewServer(server: { middlewares: { use: (handler: unknown) => void }; httpServer: { once: (event: string, callback: () => void) => void } | null }) {
-      const api = createMotionApi({ databasePath });
+      const api = createMotionApi({ databasePath, publishedModulePath });
       server.middlewares.use(api.middleware);
       server.httpServer?.once("close", api.close);
     },

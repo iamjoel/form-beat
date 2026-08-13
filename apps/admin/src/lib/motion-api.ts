@@ -17,6 +17,12 @@ export interface StoredMotion extends MotionSummary {
   project: MotionProject;
 }
 
+export interface MotionPublication {
+  exerciseIds: string[];
+  outputPath: string;
+  changed: boolean;
+}
+
 interface ApiErrorBody {
   error?: string;
 }
@@ -59,4 +65,17 @@ export async function updateMotion(
     },
   );
   return response.motion;
+}
+
+export async function publishMotion(
+  id: string,
+  project: MotionProject,
+): Promise<{ motion: StoredMotion; publication: MotionPublication }> {
+  return requestJson<{ motion: StoredMotion; publication: MotionPublication }>(
+    `/api/motions/${encodeURIComponent(id)}/publish`,
+    {
+      method: "POST",
+      body: JSON.stringify({ project }),
+    },
+  );
 }

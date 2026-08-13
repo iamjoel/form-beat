@@ -9,6 +9,7 @@ interface SetupScreenProps {
   onExerciseChange: (exerciseId: ExerciseId) => void;
   onTargetChange: (target: number) => void;
   onOpenFitness: () => void;
+  onOpenExercises: () => void;
   onOpenProfile: () => void;
   onStart: () => void;
 }
@@ -22,6 +23,7 @@ export function SetupScreen({
   onExerciseChange,
   onTargetChange,
   onOpenFitness,
+  onOpenExercises,
   onOpenProfile,
   onStart,
 }: SetupScreenProps) {
@@ -122,6 +124,7 @@ export function SetupScreen({
           active="workout"
           onNavigate={(nextView) => {
             if (nextView === "fitness") onOpenFitness();
+            if (nextView === "exercises") onOpenExercises();
             if (nextView === "profile") onOpenProfile();
           }}
         />

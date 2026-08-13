@@ -33,6 +33,14 @@ pnpm admin:build
 - 在任意播放位置添加关键帧时，会复制该时刻的补间姿势。
 - 在“项目”面板设置动作时长、补间方式、循环、GIF 尺寸和帧率。
 - 项目会自动保存到 SQLite，也可以导入、导出 `.motion.json`。
+- 点击顶部“发布到客户端”会把当前动作标记为 `ready`，并将每种动作最近发布的
+  `MotionProject` 生成到共享核心。Web 和小程序下次构建时会直接使用这些关键帧。
+
+也可以从仓库根目录重新生成全部已发布动作：
+
+```bash
+pnpm motion:publish
+```
 
 ## 创建健身数据 Skill
 
@@ -49,7 +57,11 @@ node apps/admin/skills/create-fitness-motion/scripts/create_motion.mjs \
 
 ## 当前角色素材限制
 
-现有哈士奇素材是每个动作两张完整位图。编辑器将它作为姿势 A/B 的关键帧参考图，骨骼和角度会平滑补间，但哈士奇位图本身只会切换，不会跟随每个关节连续变形。要实现角色完全随骨骼运动，需要把角色拆成头、躯干、上下臂、手、大小腿、脚、尾巴和服装等透明图层，再接入 2D 蒙皮。
+现有哈士奇素材仍是每个动作两张完整位图，因此角色本身会在姿势 A/B 间切换；
+骨骼和角度已经在 Web、小程序和 Admin 中统一按多关键帧平滑补间。角色绘制现已
+通过 `DemoCharacterRenderer` 与动作数据解耦，`MotionProject.character.renderer`
+支持声明 `sprite-frames` 或 `layered-rig`。接入完整 2D 蒙皮仍需要美术侧提供头、
+躯干、上下臂、手、大小腿、脚、尾巴和服装等透明图层素材。
 
 ## JSON 数据
 
@@ -57,6 +69,7 @@ node apps/admin/skills/create-fitness-motion/scripts/create_motion.mjs \
 
 - 项目时长、循环与补间方式
 - 哈士奇参考动作和显示选项
+- 角色渲染器与素材 ID（旧项目缺少时自动按哈士奇精灵图处理）
 - 所有关键帧的 33 个标准化姿态点
 - 角度标注的三个关节、圆弧半径和标签偏移
 - 当前启用的骨骼连线；最终 GIF 中不会绘制没有任何连线的孤立关节点

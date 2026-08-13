@@ -10,6 +10,7 @@
     "dev": "pnpm --filter @workout-detect/web dev",
     "admin:dev": "pnpm --filter @workout-detect/admin dev",
     "admin:build": "pnpm --filter @workout-detect/core build && pnpm --filter @workout-detect/admin build",
+    "motion:publish": "pnpm --filter @workout-detect/admin publish:motions",
     "build": "pnpm --filter @workout-detect/core build && pnpm --filter @workout-detect/web build && pnpm --filter @workout-detect/admin build && node apps/miniprogram/scripts/sync-core.mjs",
     "preview": "pnpm --filter @workout-detect/web preview",
     "test": "pnpm --filter @workout-detect/core test && pnpm --filter @workout-detect/web test && pnpm --filter @workout-detect/admin test",

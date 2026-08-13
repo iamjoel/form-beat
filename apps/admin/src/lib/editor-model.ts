@@ -5,51 +5,26 @@ import {
   type ExerciseDemoFrame,
 } from "@workout-detect/core/lib/exercise-demo";
 import type { PosePoint } from "@workout-detect/core/lib/geometry";
+import {
+  applyMotionEasing,
+  getMotionPoseSegment,
+  getMotionReferenceFrame,
+  interpolateMotionPose,
+  sortMotionKeyframes,
+  type AngleAnnotation,
+  type BoneConnection,
+  type MotionProject,
+  type PoseKeyframe,
+} from "@workout-detect/core/lib/motion-project";
 
-export type MotionEasing = "linear" | "ease-in-out" | "ease-out";
-export type BoneConnection = [startIndex: number, endIndex: number];
-
-export interface PoseKeyframe {
-  id: string;
-  name: string;
-  timeMs: number;
-  referenceFrame: 0 | 1;
-  points: PosePoint[];
-}
-
-export interface AngleAnnotation {
-  id: string;
-  label: string;
-  startIndex: number;
-  vertexIndex: number;
-  endIndex: number;
-  radius: number;
-  labelOffset: { x: number; y: number };
-}
-
-export interface MotionProject {
-  schemaVersion: 1;
-  name: string;
-  durationMs: number;
-  easing: MotionEasing;
-  loop: boolean;
-  canvas: { width: number; height: number };
-  reference: {
-    exerciseId: ExerciseId;
-    visible: boolean;
-    opacity: number;
-  };
-  display: {
-    skeleton: boolean;
-    joints: boolean;
-    angles: boolean;
-  };
-  skeleton: {
-    connections: BoneConnection[];
-  };
-  keyframes: PoseKeyframe[];
-  annotations: AngleAnnotation[];
-}
+export type {
+  AngleAnnotation,
+  BoneConnection,
+  MotionEasing,
+  MotionProject,
+  MotionPoseSegment as PoseSegment,
+  PoseKeyframe,
+} from "@workout-detect/core/lib/motion-project";
 
 export interface JointDefinition {
   index: number;
@@ -206,6 +181,10 @@ export function createMotionProject(exerciseId: ExerciseId = "squat"): MotionPro
     loop: true,
     canvas: { width: 720, height: 720 },
     reference: { exerciseId, visible: true, opacity: 0.94 },
+    character: {
+      renderer: "sprite-frames",
+      assetId: "husky-exercise-sprites-v2",
+    },
     display: { skeleton: true, joints: true, angles: true },
     skeleton: { connections: cloneConnections(DEFAULT_BONE_CONNECTIONS) },
     keyframes: [
@@ -217,75 +196,11 @@ export function createMotionProject(exerciseId: ExerciseId = "squat"): MotionPro
   };
 }
 
-export function applyEasing(progress: number, easing: MotionEasing): number {
-  const value = Math.min(1, Math.max(0, progress));
-  if (easing === "linear") return value;
-  if (easing === "ease-out") return 1 - (1 - value) ** 4;
-  return value < 0.5
-    ? 8 * value ** 4
-    : 1 - (-2 * value + 2) ** 4 / 2;
-}
-
-export function sortedKeyframes(keyframes: readonly PoseKeyframe[]): PoseKeyframe[] {
-  return [...keyframes].sort((a, b) => a.timeMs - b.timeMs);
-}
-
-export interface PoseSegment {
-  previous: PoseKeyframe;
-  next: PoseKeyframe;
-  progress: number;
-}
-
-export function getPoseSegment(
-  keyframes: readonly PoseKeyframe[],
-  timeMs: number,
-): PoseSegment {
-  const frames = sortedKeyframes(keyframes);
-  const first = frames[0];
-  const last = frames.at(-1);
-  if (!first || !last) throw new Error("项目中至少需要一个关键帧");
-  if (timeMs <= first.timeMs) return { previous: first, next: first, progress: 0 };
-  if (timeMs >= last.timeMs) return { previous: last, next: last, progress: 0 };
-
-  for (let index = 0; index < frames.length - 1; index += 1) {
-    const previous = frames[index];
-    const next = frames[index + 1];
-    if (timeMs <= next.timeMs) {
-      return {
-        previous,
-        next,
-        progress: (timeMs - previous.timeMs) / Math.max(1, next.timeMs - previous.timeMs),
-      };
-    }
-  }
-
-  return { previous: last, next: last, progress: 0 };
-}
-
-export function interpolatePose(
-  project: MotionProject,
-  timeMs: number,
-): PosePoint[] {
-  const segment = getPoseSegment(project.keyframes, timeMs);
-  const amount = applyEasing(segment.progress, project.easing);
-  return segment.previous.points.map((point, index) => {
-    const next = segment.next.points[index] ?? point;
-    const visible = (point.visibility ?? 0) >= 0.5 || (next.visibility ?? 0) >= 0.5;
-    return {
-      x: point.x + (next.x - point.x) * amount,
-      y: point.y + (next.y - point.y) * amount,
-      z: (point.z ?? 0) + ((next.z ?? 0) - (point.z ?? 0)) * amount,
-      visibility: visible ? 1 : 0,
-    };
-  });
-}
-
-export function referenceFrameAt(project: MotionProject, timeMs: number): 0 | 1 {
-  const segment = getPoseSegment(project.keyframes, timeMs);
-  return segment.progress < 0.5
-    ? segment.previous.referenceFrame
-    : segment.next.referenceFrame;
-}
+export const applyEasing = applyMotionEasing;
+export const sortedKeyframes = sortMotionKeyframes;
+export const getPoseSegment = getMotionPoseSegment;
+export const interpolatePose = interpolateMotionPose;
+export const referenceFrameAt = getMotionReferenceFrame;
 
 export function nearestKeyframe(
   project: MotionProject,

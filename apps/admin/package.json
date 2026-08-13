@@ -11,6 +11,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "publish:motions": "node --experimental-strip-types scripts/publish-motions.ts",
     "test": "vitest run"
   },
   "dependencies": {

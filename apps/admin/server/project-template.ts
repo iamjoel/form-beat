@@ -129,6 +129,10 @@ export function createStarterMotionProject(input: {
       visible: true,
       opacity: 0.94,
     },
+    character: {
+      renderer: "sprite-frames",
+      assetId: "husky-exercise-sprites-v2",
+    },
     display: { skeleton: true, joints: true, angles: true },
     skeleton: { connections: CONNECTIONS.map(([start, end]) => [start, end]) },
     keyframes: [

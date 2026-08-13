@@ -9,6 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import { getCatalogExerciseLabel } from "@workout-detect/core/domain/exercise-catalog";
 import { EXERCISES, getExercise, type ExerciseId } from "@workout-detect/core/domain/exercises";
 import { jointAngle } from "@workout-detect/core/lib/geometry";
 import huskySpriteUrl from "@workout-detect/core/assets/husky-exercise-sprites-v2.png";
@@ -168,6 +169,8 @@ export interface AppProps {
   initialProject?: MotionProject;
   onProjectChange?: (project: MotionProject) => void;
   onBack?: () => void;
+  isPublished?: boolean;
+  onPublish?: (project: MotionProject) => Promise<void>;
   saveState?: SaveState;
 }
 
@@ -175,6 +178,8 @@ export function App({
   initialProject: providedProject,
   onProjectChange,
   onBack,
+  isPublished = false,
+  onPublish,
   saveState = "saved",
 }: AppProps = {}) {
   const initialProject = useMemo(
@@ -198,6 +203,7 @@ export function App({
   const [notice, setNotice] = useState<string | null>(null);
   const [gifSettings, setGifSettings] = useState({ size: 480, fps: 12 });
   const [gifProgress, setGifProgress] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
   const [anglePresetId, setAnglePresetId] = useState(ANGLE_PRESETS[0].id);
   const [historyVersion, setHistoryVersion] = useState(0);
   const historyRef = useRef<{ past: MotionProject[]; future: MotionProject[] }>({
@@ -245,6 +251,9 @@ export function App({
     [project, playheadMs],
   );
   const selectedJointDefinition = selectedJoint === null ? null : JOINT_BY_INDEX.get(selectedJoint) ?? null;
+  const referenceTrainingExercise = EXERCISES.find(
+    (exercise) => exercise.id === project.reference.exerciseId,
+  );
   const canUndo = historyRef.current.past.length > 0;
   const canRedo = historyRef.current.future.length > 0;
 
@@ -846,6 +855,19 @@ export function App({
     }
   }
 
+  async function publishProject(): Promise<void> {
+    if (!onPublish || publishing) return;
+    setPublishing(true);
+    try {
+      await onPublish(copyProject(projectRef.current));
+      showNotice("已发布到 Web 与小程序共享动作数据");
+    } catch (error) {
+      showNotice(error instanceof Error ? error.message : "发布失败");
+    } finally {
+      setPublishing(false);
+    }
+  }
+
   const selectedAngleDegrees = useMemo(() => {
     if (!selectedAnnotation) return null;
     const start = currentPoints[selectedAnnotation.startIndex];
@@ -897,6 +919,16 @@ export function App({
           <button className="button button-ghost" onClick={exportJson}>
             <Icon name="download" /> JSON
           </button>
+          {onPublish ? (
+            <button
+              className="button button-ghost"
+              onClick={() => void publishProject()}
+              disabled={publishing || saveState === "saving"}
+            >
+              {publishing ? <span className="spinner" /> : <Icon name="frames" />}
+              {publishing ? "发布中" : isPublished ? "重新发布" : "发布到客户端"}
+            </button>
+          ) : null}
           <button className="button button-accent" onClick={exportGif} disabled={!sprite || !!gifProgress}>
             {gifProgress ? <span className="spinner" /> : <Icon name="image" />}
             {gifProgress ?? "导出 GIF"}
@@ -955,7 +987,7 @@ export function App({
           <div className="stage-meta">
             <div>
               <span className="eyebrow">POSE CANVAS</span>
-              <strong>{getExercise(project.reference.exerciseId).label} · {selectedKeyframe.name}</strong>
+              <strong>{getCatalogExerciseLabel(project.reference.exerciseId)} · {selectedKeyframe.name}</strong>
             </div>
             <div className="stage-state">
               <span className="live-dot" />
@@ -1252,7 +1284,13 @@ export function App({
                       {EXERCISES.map((exercise) => <option key={exercise.id} value={exercise.id}>{exercise.label}</option>)}
                     </select>
                   </label>
-                  <button className="button button-wide button-outline" onClick={() => resetFromExercise(project.reference.exerciseId)}>套用动作模板</button>
+                  <button
+                    className="button button-wide button-outline"
+                    disabled={!referenceTrainingExercise}
+                    onClick={() => {
+                      if (referenceTrainingExercise) resetFromExercise(referenceTrainingExercise.id);
+                    }}
+                  >套用动作模板</button>
                   <label className="field"><span>总时长（ms）</span><input type="number" min={300} max={30000} step={100} value={project.durationMs} onChange={(event) => handleDurationChange(Number(event.target.value))} /></label>
                   <label className="field">
                     <span>补间方式</span>
