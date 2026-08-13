@@ -15,16 +15,21 @@ import { MainNav, type MainNavDestination } from "./MainNav";
 type MuscleFilter = "all" | MuscleGroupId;
 
 interface ExerciseLibraryScreenProps {
+  activeExerciseId: CatalogExerciseId | null;
   onNavigate: (destination: Exclude<MainNavDestination, "exercises">) => void;
+  onOpenExercise: (exerciseId: CatalogExerciseId) => void;
+  onBackToLibrary: () => void;
   onStartExercise: (exerciseId: ExerciseId) => void;
 }
 
 export function ExerciseLibraryScreen({
+  activeExerciseId,
   onNavigate,
+  onOpenExercise,
+  onBackToLibrary,
   onStartExercise,
 }: ExerciseLibraryScreenProps) {
   const [muscleFilter, setMuscleFilter] = useState<MuscleFilter>("all");
-  const [activeExerciseId, setActiveExerciseId] = useState<CatalogExerciseId | null>(null);
 
   if (activeExerciseId) {
     const trainingExerciseId = getExerciseCatalogEntry(
@@ -33,10 +38,7 @@ export function ExerciseLibraryScreen({
     return (
       <ExerciseDetail
         exerciseId={activeExerciseId}
-        onBack={() => {
-          setActiveExerciseId(null);
-          window.scrollTo({ top: 0, left: 0 });
-        }}
+        onBack={onBackToLibrary}
         onStart={trainingExerciseId
           ? () => onStartExercise(trainingExerciseId)
           : undefined}
@@ -97,10 +99,7 @@ export function ExerciseLibraryScreen({
                   className="exercise-catalog-row"
                   type="button"
                   key={entry.id}
-                  onClick={() => {
-                    setActiveExerciseId(entry.id);
-                    window.scrollTo({ top: 0, left: 0 });
-                  }}
+                  onClick={() => onOpenExercise(entry.id)}
                 >
                   <span className="exercise-catalog-index">
                     {String(index + 1).padStart(2, "0")}

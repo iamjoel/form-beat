@@ -1,4 +1,6 @@
-export type MainNavDestination = "fitness" | "exercises" | "workout" | "profile";
+import type { MainNavDestination } from "../lib/app-route";
+
+export type { MainNavDestination } from "../lib/app-route";
 
 interface MainNavProps {
   active: MainNavDestination;
@@ -33,6 +35,27 @@ export function MainNav({ active, onNavigate }: MainNavProps) {
 
       <button
         className="main-nav__button"
+        data-active={active === "workout" ? "true" : "false"}
+        type="button"
+        aria-current={active === "workout" ? "page" : undefined}
+        onClick={() => onNavigate("workout")}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />
+        </svg>
+        <span>锻炼</span>
+      </button>
+
+      <button
+        className="main-nav__button"
         data-active={active === "exercises" ? "true" : "false"}
         type="button"
         aria-current={active === "exercises" ? "page" : undefined}
@@ -58,27 +81,6 @@ export function MainNav({ active, onNavigate }: MainNavProps) {
           <circle cx="18" cy="18" r="1.5" />
         </svg>
         <span>动作</span>
-      </button>
-
-      <button
-        className="main-nav__button"
-        data-active={active === "workout" ? "true" : "false"}
-        type="button"
-        aria-current={active === "workout" ? "page" : undefined}
-        onClick={() => onNavigate("workout")}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />
-        </svg>
-        <span>锻炼</span>
       </button>
 
       <button

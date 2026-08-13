@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import type { CatalogExerciseId } from "@workout-detect/core/domain/exercise-catalog";
 import { EXERCISES, type ExerciseId } from "@workout-detect/core/domain/exercises";
 import type { CompletionStats } from "@workout-detect/core/domain/session";
 
@@ -8,6 +9,11 @@ import { SetupScreen } from "./components/SetupScreen";
 import type { MainNavDestination } from "./components/MainNav";
 import type { AvatarId } from "./domain/records";
 import { primeAudio, primeSpeechSynthesis } from "./lib/audio";
+import {
+  getExerciseRoutePath,
+  getMainRoutePath,
+  parseAppRoute,
+} from "./lib/app-route";
 import type { CompletedRecording } from "./lib/session-recorder";
 import {
   saveWorkoutRecord,
@@ -50,6 +56,7 @@ const PROFILE_STORAGE_KEY = "workout-detect:profile:v1";
 const DEMO_DISMISSED_STORAGE_KEY = "workout-detect:exercise-demo-dismissed:v1";
 const showCompletionPreview =
   import.meta.env.DEV && new URLSearchParams(window.location.search).get("preview") === "complete";
+const initialAppRoute = parseAppRoute(window.location.pathname);
 const previewStats: CompletionStats = {
   completedReps: initialExercise.defaultTarget,
   targetReps: initialExercise.defaultTarget,
@@ -100,8 +107,18 @@ function isDemoDismissed(): boolean {
   }
 }
 
+function viewForMainDestination(destination: MainNavDestination): AppView {
+  return destination === "workout" ? "setup" : destination;
+}
+
 export function App() {
-  const [view, setView] = useState<AppView>(showCompletionPreview ? "complete" : "setup");
+  const [view, setView] = useState<AppView>(
+    showCompletionPreview
+      ? "complete"
+      : viewForMainDestination(initialAppRoute.destination),
+  );
+  const [activeCatalogExerciseId, setActiveCatalogExerciseId] =
+    useState<CatalogExerciseId | null>(initialAppRoute.exerciseId);
   const [exerciseId, setExerciseId] = useState<ExerciseId>(initialExercise.id);
   const [target, setTarget] = useState<number>(initialExercise.defaultTarget);
   const [avatar, setAvatar] = useState<AvatarId>(readSavedAvatar);
@@ -116,6 +133,17 @@ export function App() {
   const saveTokenRef = useRef(0);
 
   useEffect(() => {
+    const handlePopState = () => {
+      const route = parseAppRoute(window.location.pathname);
+      setActiveCatalogExerciseId(route.exerciseId);
+      setView(viewForMainDestination(route.destination));
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  useEffect(() => {
     if (
       view === "fitness" ||
       view === "exercises" ||
@@ -124,7 +152,7 @@ export function App() {
     ) {
       window.scrollTo({ top: 0, left: 0 });
     }
-  }, [view]);
+  }, [activeCatalogExerciseId, view]);
 
   const handleExerciseChange = (nextExerciseId: ExerciseId) => {
     const nextExercise = EXERCISES.find((exercise) => exercise.id === nextExerciseId);
@@ -136,7 +164,21 @@ export function App() {
   };
 
   const handleMainNavigation = (destination: MainNavDestination) => {
-    setView(destination === "workout" ? "setup" : destination);
+    const nextPath = getMainRoutePath(destination);
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState(null, "", nextPath);
+    }
+    setActiveCatalogExerciseId(null);
+    setView(viewForMainDestination(destination));
+  };
+
+  const handleOpenCatalogExercise = (nextExerciseId: CatalogExerciseId) => {
+    const nextPath = getExerciseRoutePath(nextExerciseId);
+    if (window.location.pathname !== nextPath) {
+      window.history.pushState(null, "", nextPath);
+    }
+    setActiveCatalogExerciseId(nextExerciseId);
+    setView("exercises");
   };
 
   const beginWorkout = () => {
@@ -241,7 +283,7 @@ export function App() {
           exerciseId={exerciseId}
           target={target}
           avatar={avatar}
-          onExit={() => setView("setup")}
+          onExit={() => handleMainNavigation("workout")}
           onComplete={handleComplete}
         />
       </Suspense>
@@ -268,7 +310,7 @@ export function App() {
         recordingNotice={recordingNotice}
         recordingSaving={recordingSaving}
         onRepeat={handleStart}
-        onOpenRecords={() => setView("fitness")}
+        onOpenRecords={() => handleMainNavigation("fitness")}
       />
     );
   }
@@ -287,10 +329,13 @@ export function App() {
     return (
       <Suspense fallback={<CatalogLoading />}>
         <ExerciseLibraryScreen
+          activeExerciseId={activeCatalogExerciseId}
           onNavigate={handleMainNavigation}
+          onOpenExercise={handleOpenCatalogExercise}
+          onBackToLibrary={() => handleMainNavigation("exercises")}
           onStartExercise={(nextExerciseId) => {
             handleExerciseChange(nextExerciseId);
-            setView("setup");
+            handleMainNavigation("workout");
           }}
         />
       </Suspense>
@@ -317,9 +362,9 @@ export function App() {
       target={target}
       onExerciseChange={handleExerciseChange}
       onTargetChange={setTarget}
-      onOpenFitness={() => setView("fitness")}
-      onOpenExercises={() => setView("exercises")}
-      onOpenProfile={() => setView("profile")}
+      onOpenFitness={() => handleMainNavigation("fitness")}
+      onOpenExercises={() => handleMainNavigation("exercises")}
+      onOpenProfile={() => handleMainNavigation("profile")}
       onStart={handleStart}
     />
   );
