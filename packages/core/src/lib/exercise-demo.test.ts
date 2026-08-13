@@ -7,6 +7,7 @@ import {
   getExerciseDemoFrame,
   getExerciseDemoKeyframe,
   getExerciseDemoPoseAmount,
+  getExerciseDemoSpriteCenter,
   POSE_CONNECTIONS,
 } from "./exercise-demo";
 import {
@@ -100,6 +101,21 @@ describe("exercise demo frames", () => {
     expect(getExerciseDemoPoseAmount(1)).toBeCloseTo(0);
     expect(getExerciseDemoKeyframe(0)).toBe(0);
     expect(getExerciseDemoKeyframe(0.5)).toBe(1);
+  });
+
+  it("provides a visual center for both frames of every husky action", () => {
+    for (const exerciseId of Object.keys(EXERCISE_DEMO_SPRITE_CROPS)) {
+      for (const referenceFrame of [0, 1] as const) {
+        const center = getExerciseDemoSpriteCenter(
+          exerciseId as keyof typeof EXERCISE_DEMO_SPRITE_CROPS,
+          referenceFrame,
+        );
+        expect(center.x).toBeGreaterThan(0);
+        expect(center.x).toBeLessThan(1);
+        expect(center.y).toBeGreaterThan(0);
+        expect(center.y).toBeLessThan(1);
+      }
+    }
   });
 
   it("evaluates client demos from continuous multi-keyframe projects", () => {

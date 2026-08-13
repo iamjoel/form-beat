@@ -9,6 +9,7 @@ import {
 } from "@workout-detect/core/domain/exercises";
 import {
   getExerciseDemoCriticalMarkup,
+  getExerciseDemoSpriteCenter,
   type HuskySpriteAssetId,
 } from "@workout-detect/core/lib/exercise-demo";
 import { getExerciseDemoProject } from "@workout-detect/core/lib/exercise-demo-project";
@@ -130,13 +131,21 @@ function drawDemo(
 ): void {
   const unit = Math.min(width, height);
   context.clearRect(0, 0, width, height);
-  context.fillStyle = "#e9eadf";
+  context.fillStyle = "#f8f5ed";
   context.fillRect(0, 0, width, height);
 
+  const contentCenter = getExerciseDemoSpriteCenter(
+    project.reference.exerciseId,
+    frame.referenceFrame,
+  );
+  context.save();
+  context.translate(
+    (0.5 - contentCenter.x) * width,
+    (0.5 - contentCenter.y) * height,
+  );
   if (project.reference.visible && characterRenderer) {
     characterRenderer.draw(context, project, frame, width, height);
   }
-  context.save();
   context.lineCap = "round";
   context.lineJoin = "round";
   const criticalMarkup = getExerciseDemoCriticalMarkup(frame.angleOverlays);

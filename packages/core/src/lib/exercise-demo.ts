@@ -56,6 +56,10 @@ export interface ExerciseDemoSpriteCrop {
   sourceY: number;
   sourceHeight: number;
   mirror: boolean;
+  frameCenters: readonly [
+    { x: number; y: number },
+    { x: number; y: number },
+  ];
 }
 
 export const EXERCISE_DEMO_SPRITE_CROPS: Record<
@@ -67,44 +71,63 @@ export const EXERCISE_DEMO_SPRITE_CROPS: Record<
     sourceY: 0,
     sourceHeight: 0.3,
     mirror: false,
+    frameCenters: [{ x: 0.436, y: 0.487 }, { x: 0.385, y: 0.55 }],
   },
   "push-up": {
     assetId: "husky-exercise-sprites-v2",
     sourceY: 0.29,
     sourceHeight: 0.205,
     mirror: true,
+    frameCenters: [{ x: 0.491, y: 0.484 }, { x: 0.451, y: 0.564 }],
   },
   "jumping-jack": {
     assetId: "husky-exercise-sprites-v2",
     sourceY: 0.485,
     sourceHeight: 0.25,
     mirror: false,
+    frameCenters: [{ x: 0.485, y: 0.533 }, { x: 0.364, y: 0.542 }],
   },
   lunge: {
     assetId: "husky-exercise-sprites-v2",
     sourceY: 0.735,
     sourceHeight: 0.265,
     mirror: false,
+    frameCenters: [{ x: 0.417, y: 0.477 }, { x: 0.352, y: 0.489 }],
   },
   superman: {
     assetId: "husky-exercise-sprites-v3",
     sourceY: 0,
     sourceHeight: 1 / 3,
     mirror: false,
+    frameCenters: [{ x: 0.517, y: 0.747 }, { x: 0.489, y: 0.657 }],
   },
   "close-grip-push-up": {
     assetId: "husky-exercise-sprites-v3",
     sourceY: 1 / 3,
     sourceHeight: 1 / 3,
     mirror: false,
+    frameCenters: [{ x: 0.476, y: 0.449 }, { x: 0.476, y: 0.482 }],
   },
   "mountain-climber": {
     assetId: "husky-exercise-sprites-v3",
     sourceY: 2 / 3,
     sourceHeight: 1 / 3,
     mirror: false,
+    frameCenters: [{ x: 0.475, y: 0.287 }, { x: 0.479, y: 0.3 }],
   },
 };
+
+export function getExerciseDemoSpriteCenter(
+  exerciseId: CatalogExerciseId,
+  referenceFrame: 0 | 1,
+): { x: number; y: number } {
+  const crop = EXERCISE_DEMO_SPRITE_CROPS[exerciseId];
+  const center = crop.frameCenters[referenceFrame];
+  return {
+    x: crop.mirror ? 1 - center.x : center.x,
+    y: center.y,
+  };
+}
 
 const SQUAT: DemoPosePair = {
   start: [
