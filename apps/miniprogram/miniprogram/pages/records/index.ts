@@ -16,6 +16,7 @@ interface FitnessPageData {
   weekdays: readonly string[];
   calendarCells: CalendarCell[];
   monthLabel: string;
+  canGoNextMonth: boolean;
   todayKey: string;
   todaySessions: number;
   todayReps: number;
@@ -38,6 +39,7 @@ Page({
     weekdays: WEEKDAYS,
     calendarCells: [],
     monthLabel: "",
+    canGoNextMonth: false,
     todayKey: "",
     todaySessions: 0,
     todayReps: 0,
@@ -72,7 +74,12 @@ Page({
   },
 
   refreshCalendar(this: FitnessPageInstance) {
-    const todayKey = toDateKey(new Date());
+    const today = new Date();
+    const currentMonth = startOfMonth(today);
+    if (this.visibleMonth.getTime() > currentMonth.getTime()) {
+      this.visibleMonth = currentMonth;
+    }
+    const todayKey = toDateKey(today);
     const recordsByDate = new Map<string, number>();
     for (const record of this.records) {
       const key = toDateKey(new Date(record.completedAt));
@@ -119,17 +126,21 @@ Page({
     this.setData({
       calendarCells: cells,
       monthLabel: `${first.getFullYear()}年${first.getMonth() + 1}月`,
+      canGoNextMonth: first.getTime() < currentMonth.getTime(),
     });
   },
 
   changeMonth(this: FitnessPageInstance, event: MiniProgramEvent) {
     const delta = Number(event.currentTarget.dataset.delta);
-    if (!Number.isFinite(delta)) return;
-    this.visibleMonth = new Date(
+    if (delta !== -1 && delta !== 1) return;
+    const nextMonth = new Date(
       this.visibleMonth.getFullYear(),
       this.visibleMonth.getMonth() + delta,
       1,
     );
+    const currentMonth = startOfMonth(new Date());
+    if (nextMonth.getTime() > currentMonth.getTime()) return;
+    this.visibleMonth = nextMonth;
     this.refreshCalendar();
   },
 

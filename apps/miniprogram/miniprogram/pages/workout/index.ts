@@ -14,7 +14,15 @@ import {
   type RepCounterState,
 } from "../../shared/core/lib/rep-counter";
 import { CameraFrameRenderer } from "../../lib/camera-frame-renderer";
-import { clearPose, drawPose, type RenderSize } from "../../lib/pose-renderer";
+import { MaskedVideoRenderer } from "../../lib/masked-video-renderer";
+import {
+  clearPose,
+  drawPose,
+  getRecordingAvatarMask,
+  type RecordingAvatarId,
+  type RecordingAvatarMask,
+  type RenderSize,
+} from "../../lib/pose-renderer";
 import { smoothPose, visionKitBodyToPose } from "../../lib/visionkit-adapter";
 import { saveWorkoutRecord } from "../../lib/workout-records";
 
@@ -30,12 +38,17 @@ interface WorkoutPageData {
   status: "starting" | "tracking" | "error" | "finishing";
   error: string;
   recordingAvailable: boolean;
+  recordingAvatar: RecordingAvatarId;
+  recordingLabel: string;
 }
 
 interface WorkoutPageInstance {
   data: WorkoutPageData;
   setData(data: Partial<WorkoutPageData>): void;
   cameraContext?: CameraContext;
+  maskedMediaRecorder?: MiniProgramMediaRecorder;
+  maskedVideoRenderer?: MaskedVideoRenderer;
+  maskedRecordingSize?: RenderSize;
   frameListener?: CameraFrameListener;
   visionSession?: VKSession;
   previewCanvasNode?: CanvasNodeResult["node"];
@@ -45,6 +58,7 @@ interface WorkoutPageInstance {
   canvasPromise?: Promise<void>;
   displaySize?: RenderSize;
   sourceSize?: RenderSize;
+  pendingDetectionFrame?: CameraFrame;
   cameraFrameRenderer: CameraFrameRenderer;
   previewRenderFailed: boolean;
   counterState: RepCounterState;
@@ -55,8 +69,13 @@ interface WorkoutPageInstance {
   activeDurationMs: number;
   activeSegmentStartedAt: number;
   recordingStarted: boolean;
+  recordingFramePending: boolean;
+  recordingFrameFailed: boolean;
+  maskedFramePromise?: Promise<void>;
+  hasRecordedMaskedFrame: boolean;
   timedOutVideoPath?: string;
   finishing: boolean;
+  pageUnloaded: boolean;
   lastFeedback: string;
   lastQualityBucket: number;
   initializeTracking(): Promise<void>;
@@ -67,8 +86,100 @@ interface WorkoutPageInstance {
   updateElapsed(): void;
   getActiveDuration(now?: number): number;
   stopTracking(): void;
+  startRawRecording(): void;
+  startMaskedRecording(): Promise<void>;
+  queueMaskedRecordingFrame(frame: CameraFrame, mask: RecordingAvatarMask): void;
   stopRecording(): Promise<string | null>;
   finish(reachedTarget: boolean): Promise<void>;
+}
+
+const PROFILE_STORAGE_KEY = "workout-detect:profile:v1";
+
+function readRecordingAvatar(): RecordingAvatarId {
+  const stored = wx.getStorageSync(PROFILE_STORAGE_KEY) as
+    | { recordingAvatar?: unknown }
+    | null;
+  return stored?.recordingAvatar === "man" || stored?.recordingAvatar === "woman"
+    ? stored.recordingAvatar
+    : "none";
+}
+
+function isPromiseLike<T>(value: unknown): value is PromiseLike<T> {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "then" in value &&
+      typeof (value as { then?: unknown }).then === "function",
+  );
+}
+
+function withTimeout<T>(
+  promise: PromiseLike<T>,
+  milliseconds: number,
+  code: string,
+) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(code)), milliseconds);
+    void promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+function destroyMediaRecorder(recorder: MiniProgramMediaRecorder | undefined): void {
+  if (!recorder) return;
+  try {
+    const result = recorder.destroy();
+    if (isPromiseLike<void>(result)) void result.then(undefined, () => undefined);
+  } catch {
+    // The runtime can already have reclaimed a stopped or failed recorder.
+  }
+}
+
+async function startMediaRecorder(recorder: MiniProgramMediaRecorder): Promise<void> {
+  let resolveStarted: () => void = () => undefined;
+  const started = new Promise<void>((resolve) => {
+    resolveStarted = resolve;
+  });
+  const onStart = () => resolveStarted();
+  recorder.on("start", onStart);
+  try {
+    const result = recorder.start();
+    if (isPromiseLike<void>(result)) {
+      await withTimeout(result, 5_000, "MASKED_VIDEO_START_TIMEOUT");
+    } else {
+      await withTimeout(started, 5_000, "MASKED_VIDEO_START_TIMEOUT");
+    }
+  } finally {
+    recorder.off("start", onStart);
+  }
+}
+
+async function stopMediaRecorder(
+  recorder: MiniProgramMediaRecorder,
+): Promise<MiniProgramMediaRecorderResult> {
+  let resolveStopped: (result: MiniProgramMediaRecorderResult) => void = () => undefined;
+  const stopped = new Promise<MiniProgramMediaRecorderResult>((resolve) => {
+    resolveStopped = resolve;
+  });
+  const onStop = (result: MiniProgramMediaRecorderResult) => resolveStopped(result);
+  recorder.on("stop", onStop);
+  try {
+    const result = recorder.stop();
+    if (isPromiseLike<MiniProgramMediaRecorderResult>(result)) {
+      return await withTimeout(result, 8_000, "MASKED_VIDEO_STOP_TIMEOUT");
+    }
+    return await withTimeout(stopped, 8_000, "MASKED_VIDEO_STOP_TIMEOUT");
+  } finally {
+    recorder.off("stop", onStop);
+  }
 }
 
 function formatElapsed(milliseconds: number): string {
@@ -110,12 +221,15 @@ Page({
     status: "starting",
     error: "",
     recordingAvailable: true,
+    recordingAvatar: "none",
+    recordingLabel: "原始画面录制中",
   } satisfies WorkoutPageData,
 
   onLoad(this: WorkoutPageInstance, query: Record<string, string | undefined>) {
     const exerciseId = parseExercise(query.exercise);
     const exercise = getExercise(exerciseId);
     const requestedTarget = Number(query.target);
+    const recordingAvatar = readRecordingAvatar();
     const target = Number.isFinite(requestedTarget)
       ? Math.min(99, Math.max(1, Math.round(requestedTarget)))
       : exercise.defaultTarget;
@@ -128,7 +242,11 @@ Page({
     this.activeDurationMs = 0;
     this.activeSegmentStartedAt = 0;
     this.recordingStarted = false;
+    this.recordingFramePending = false;
+    this.recordingFrameFailed = false;
+    this.hasRecordedMaskedFrame = false;
     this.finishing = false;
+    this.pageUnloaded = false;
     this.lastFeedback = exercise.readyCue;
     this.lastQualityBucket = -1;
     this.setData({
@@ -136,6 +254,9 @@ Page({
       exerciseLabel: exercise.label,
       target,
       feedback: exercise.readyCue,
+      recordingAvatar,
+      recordingLabel:
+        recordingAvatar === "none" ? "原始画面录制中" : "正在启动隐私录屏",
     });
   },
 
@@ -154,10 +275,10 @@ Page({
   },
 
   onUnload(this: WorkoutPageInstance) {
+    this.pageUnloaded = true;
     this.stopTracking();
     if (this.recordingStarted && !this.finishing) {
-      this.recordingStarted = false;
-      this.cameraContext?.stopRecord({});
+      void this.stopRecording();
     }
   },
 
@@ -221,6 +342,7 @@ Page({
         version: "v1",
       });
       this.visionSession = session;
+      session.on("addAnchors", (anchors) => this.handleAnchors(anchors));
       session.on("updateAnchors", (anchors) => this.handleAnchors(anchors));
       session.on("removeAnchors", () => this.handleAnchors([]));
 
@@ -245,23 +367,11 @@ Page({
       this.activeSegmentStartedAt = now;
       this.elapsedTimer = setInterval(() => this.updateElapsed(), 500);
       this.setData({ status: "tracking", error: "" });
-
-      this.cameraContext.startRecord({
-        selfieMirror: true,
-        timeout: 300,
-        success: () => {
-          this.recordingStarted = true;
-        },
-        fail: (error) => {
-          console.warn("原始相机录像启动失败", error);
-          this.setData({ recordingAvailable: false });
-        },
-        timeoutCallback: (result) => {
-          this.recordingStarted = false;
-          this.timedOutVideoPath = result.tempVideoPath;
-          void this.finish(false);
-        },
-      });
+      if (this.data.recordingAvatar === "none") {
+        this.startRawRecording();
+      } else {
+        await this.startMaskedRecording();
+      }
     } catch (error) {
       console.error("VisionKit 初始化失败", error);
       this.stopTracking();
@@ -300,6 +410,10 @@ Page({
 
     this.processingFrame = true;
     this.sourceSize = { width: frame.width, height: frame.height };
+    this.pendingDetectionFrame =
+      this.data.recordingAvatar === "none"
+        ? frame
+        : { ...frame, data: frame.data.slice(0) };
     if (this.processingWatchdog) clearTimeout(this.processingWatchdog);
     this.processingWatchdog = setTimeout(() => {
       this.processingFrame = false;
@@ -322,6 +436,8 @@ Page({
   handleAnchors(this: WorkoutPageInstance, anchors: VKBodyAnchor[]) {
     if (this.processingWatchdog) clearTimeout(this.processingWatchdog);
     this.processingFrame = false;
+    const detectedFrame = this.pendingDetectionFrame;
+    this.pendingDetectionFrame = undefined;
     if (this.finishing || this.data.paused) return;
 
     const anchor = anchors.reduce<VKBodyAnchor | null>(
@@ -353,10 +469,25 @@ Page({
           display,
           landmarks,
           update.angleOverlays,
+          this.data.recordingAvatar,
         );
       } else {
         clearPose(this.canvasContext, display);
       }
+    }
+
+    if (
+      detectedFrame &&
+      this.data.recordingAvatar !== "none" &&
+      this.maskedRecordingSize
+    ) {
+      const mask = getRecordingAvatarMask(
+        detectedFrame,
+        this.maskedRecordingSize,
+        landmarks,
+        this.data.recordingAvatar,
+      );
+      if (mask) this.queueMaskedRecordingFrame(detectedFrame, mask);
     }
 
     const nextData: Partial<WorkoutPageData> = {};
@@ -387,8 +518,10 @@ Page({
   },
 
   updateElapsed(this: WorkoutPageInstance) {
-    const elapsedLabel = formatElapsed(this.getActiveDuration());
+    const elapsed = this.getActiveDuration();
+    const elapsedLabel = formatElapsed(elapsed);
     if (elapsedLabel !== this.data.elapsedLabel) this.setData({ elapsedLabel });
+    if (elapsed >= 300_000 && !this.finishing) void this.finish(false);
   },
 
   getActiveDuration(this: WorkoutPageInstance, now = Date.now()): number {
@@ -427,6 +560,149 @@ Page({
     });
   },
 
+  startRawRecording(this: WorkoutPageInstance) {
+    this.cameraContext?.startRecord({
+      selfieMirror: true,
+      timeout: 300,
+      success: () => {
+        if (this.finishing || this.pageUnloaded) {
+          this.cameraContext?.stopRecord({});
+          return;
+        }
+        this.recordingStarted = true;
+        this.setData({ recordingLabel: "原始画面录制中" });
+      },
+      fail: (error) => {
+        console.warn("原始相机录像启动失败", error);
+        this.setData({ recordingAvailable: false, recordingLabel: "本次不录屏" });
+      },
+      timeoutCallback: (result) => {
+        this.recordingStarted = false;
+        this.timedOutVideoPath = result.tempVideoPath;
+        void this.finish(false);
+      },
+    });
+  },
+
+  async startMaskedRecording(this: WorkoutPageInstance): Promise<void> {
+    const display = this.displaySize;
+    if (!display || typeof wx.createMediaRecorder !== "function") {
+      this.setData({
+        recordingAvailable: false,
+        recordingLabel: "隐私保护中 · 本次不录屏",
+      });
+      return;
+    }
+
+    try {
+      const aspectRatio = display.height / Math.max(1, display.width);
+      const width = Math.max(360, Math.min(720, Math.round(1280 / aspectRatio)));
+      const height = Math.round(width * aspectRatio);
+      const canvas = wx.createOffscreenCanvas({ type: "webgl", width, height });
+      const gl = canvas.getContext("webgl", {
+        alpha: false,
+        preserveDrawingBuffer: true,
+      }) as WebGLRenderingContext | null;
+      if (!gl) throw new Error("MASKED_VIDEO_WEBGL_UNAVAILABLE");
+
+      const recordingSize = { width, height };
+      const renderer = new MaskedVideoRenderer(gl, recordingSize);
+      const recorder = wx.createMediaRecorder(canvas, {
+        duration: 310,
+        fps: 15,
+        gop: 15,
+        videoBitsPerSecond: 1800,
+        width,
+        height,
+      });
+      this.maskedMediaRecorder = recorder;
+      this.maskedVideoRenderer = renderer;
+      this.maskedRecordingSize = recordingSize;
+      await startMediaRecorder(recorder);
+      this.recordingStarted = true;
+      if (this.finishing || this.pageUnloaded) {
+        await this.stopRecording();
+        return;
+      }
+      this.setData({ recordingLabel: "识别到面部后开始遮挡录屏" });
+    } catch (error) {
+      console.warn("隐私遮挡录像启动失败", error);
+      destroyMediaRecorder(this.maskedMediaRecorder);
+      this.maskedMediaRecorder = undefined;
+      this.maskedVideoRenderer = undefined;
+      this.maskedRecordingSize = undefined;
+      this.recordingStarted = false;
+      this.setData({
+        recordingAvailable: false,
+        recordingLabel: "隐私保护中 · 本次不录屏",
+      });
+    }
+  },
+
+  queueMaskedRecordingFrame(
+    this: WorkoutPageInstance,
+    frame: CameraFrame,
+    mask: RecordingAvatarMask,
+  ) {
+    const recorder = this.maskedMediaRecorder;
+    const renderer = this.maskedVideoRenderer;
+    if (
+      !recorder ||
+      !renderer ||
+      !this.recordingStarted ||
+      this.recordingFramePending ||
+      this.recordingFrameFailed ||
+      this.data.paused ||
+      this.finishing
+    ) {
+      return;
+    }
+
+    this.recordingFramePending = true;
+    const requestedFrame = new Promise<void>((resolve, reject) => {
+      const render = () => {
+        try {
+          renderer.draw(frame, mask);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      };
+      try {
+        const result = recorder.requestFrame(render);
+        if (isPromiseLike<void>(result)) {
+          void result.then(undefined, reject);
+        }
+      } catch (error) {
+        reject(error);
+      }
+    });
+    const guardedFrame = withTimeout(
+      requestedFrame,
+      2_500,
+      "MASKED_VIDEO_REQUEST_FRAME_TIMEOUT",
+    );
+    this.maskedFramePromise = guardedFrame;
+    void guardedFrame.then(
+      () => {
+        this.recordingFramePending = false;
+        if (!this.hasRecordedMaskedFrame) {
+          this.hasRecordedMaskedFrame = true;
+          this.setData({ recordingLabel: "遮挡画面录制中" });
+        }
+      },
+      (error) => {
+        console.warn("隐私遮挡录像帧写入失败", error);
+        this.recordingFramePending = false;
+        this.recordingFrameFailed = true;
+        this.setData({
+          recordingAvailable: false,
+          recordingLabel: "录屏已停止 · 隐私仍受保护",
+        });
+      },
+    );
+  },
+
   stopTracking(this: WorkoutPageInstance) {
     this.frameListener?.stop();
     this.frameListener = undefined;
@@ -443,10 +719,29 @@ Page({
     this.visionSession = undefined;
   },
 
-  stopRecording(this: WorkoutPageInstance): Promise<string | null> {
-    if (this.timedOutVideoPath) return Promise.resolve(this.timedOutVideoPath);
-    if (!this.cameraContext || !this.recordingStarted) return Promise.resolve(null);
+  async stopRecording(this: WorkoutPageInstance): Promise<string | null> {
+    if (this.timedOutVideoPath) return this.timedOutVideoPath;
+    if (!this.recordingStarted) return null;
     this.recordingStarted = false;
+
+    if (this.maskedMediaRecorder) {
+      const recorder = this.maskedMediaRecorder;
+      try {
+        await this.maskedFramePromise;
+        if (!this.hasRecordedMaskedFrame) return null;
+        const result = await stopMediaRecorder(recorder);
+        return result.tempFilePath || null;
+      } catch (error) {
+        console.warn("停止隐私遮挡录像失败", error);
+        return null;
+      } finally {
+        destroyMediaRecorder(recorder);
+        this.maskedMediaRecorder = undefined;
+        this.maskedVideoRenderer = undefined;
+      }
+    }
+
+    if (!this.cameraContext) return null;
     return new Promise((resolve) => {
       this.cameraContext?.stopRecord({
         compressed: false,

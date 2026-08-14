@@ -14,6 +14,15 @@ export interface CoverLayout {
   offsetY: number;
 }
 
+export type RecordingAvatarId = "none" | "man" | "woman";
+
+export interface RecordingAvatarMask {
+  avatar: Exclude<RecordingAvatarId, "none">;
+  centerX: number;
+  centerY: number;
+  radius: number;
+}
+
 function visible(point: PosePoint | undefined): point is PosePoint {
   return Boolean(
     point &&
@@ -55,6 +64,71 @@ function createProjector(source: RenderSize, display: RenderSize) {
   });
 }
 
+export function getRecordingAvatarMask(
+  source: RenderSize,
+  display: RenderSize,
+  landmarks: readonly PosePoint[],
+  avatar: RecordingAvatarId,
+): RecordingAvatarMask | null {
+  if (avatar === "none") return null;
+  const facePoints = [landmarks[0], landmarks[7], landmarks[8]].filter(visible);
+  // Only record frames with a complete, current face lock. Anything less risks
+  // placing the privacy mask beside the face instead of over it.
+  if (facePoints.length < 3) return null;
+
+  const project = createProjector(source, display);
+  const projectedFace = facePoints.map(project);
+  const centerX =
+    projectedFace.reduce((sum, point) => sum + point.x, 0) / projectedFace.length;
+  const centerY =
+    projectedFace.reduce((sum, point) => sum + point.y, 0) / projectedFace.length;
+  const faceSpan = Math.max(
+    ...projectedFace.flatMap((point, index) =>
+      projectedFace.slice(index + 1).map((other) =>
+        Math.hypot(point.x - other.x, point.y - other.y),
+      ),
+    ),
+  );
+  const leftShoulder = landmarks[11];
+  const rightShoulder = landmarks[12];
+  const shoulderWidth =
+    visible(leftShoulder) && visible(rightShoulder)
+      ? Math.hypot(
+          project(leftShoulder).x - project(rightShoulder).x,
+          project(leftShoulder).y - project(rightShoulder).y,
+        )
+      : display.width * 0.24;
+  const diameter = Math.min(
+    display.width * 0.44,
+    Math.max(display.width * 0.2, shoulderWidth * 0.86, faceSpan * 1.9),
+  );
+
+  return { avatar, centerX, centerY, radius: diameter / 2 };
+}
+
+function drawRecordingAvatar(
+  context: CanvasRenderingContext2D,
+  mask: RecordingAvatarMask,
+): void {
+  context.save();
+  context.beginPath();
+  context.arc(mask.centerX, mask.centerY, mask.radius, 0, Math.PI * 2);
+  context.fillStyle = "rgba(247, 247, 242, 1)";
+  context.fill();
+  context.lineWidth = Math.max(3, mask.radius * 0.06);
+  context.strokeStyle = "rgba(23, 24, 19, 1)";
+  context.stroke();
+  context.font = `${mask.radius * 1.42}px "Apple Color Emoji", "Segoe UI Emoji", sans-serif`;
+  context.textAlign = "center";
+  context.textBaseline = "middle";
+  context.fillText(
+    mask.avatar === "man" ? "👨" : "👩",
+    mask.centerX,
+    mask.centerY + mask.radius * 0.05,
+  );
+  context.restore();
+}
+
 export function clearPose(
   context: CanvasRenderingContext2D,
   display: RenderSize,
@@ -68,6 +142,7 @@ export function drawPose(
   display: RenderSize,
   landmarks: readonly PosePoint[],
   angleOverlays: readonly PoseAngleOverlay[],
+  recordingAvatar: RecordingAvatarId = "none",
 ): void {
   clearPose(context, display);
   const project = createProjector(source, display);
@@ -104,6 +179,14 @@ export function drawPose(
     context.strokeStyle = "rgba(18, 20, 15, 0.88)";
     context.stroke();
   }
+
+  const avatarMask = getRecordingAvatarMask(
+    source,
+    display,
+    landmarks,
+    recordingAvatar,
+  );
+  if (avatarMask) drawRecordingAvatar(context, avatarMask);
 
   context.font = "700 16px -apple-system, BlinkMacSystemFont, sans-serif";
   context.textAlign = "center";

@@ -47,6 +47,18 @@ export function FitnessScreen({ onNavigate }: FitnessScreenProps) {
   const [state, setState] = useState<FitnessState>({ status: "loading" });
   const [month, setMonth] = useState(() => startOfMonth(today));
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const currentMonth = startOfMonth(new Date());
+  const canGoNextMonth = month.getTime() < currentMonth.getTime();
+
+  const changeMonth = (amount: -1 | 1) => {
+    setMonth((visibleMonth) => {
+      const candidate = addMonths(visibleMonth, amount);
+      const latestAllowedMonth = startOfMonth(new Date());
+      return candidate.getTime() > latestAllowedMonth.getTime()
+        ? latestAllowedMonth
+        : candidate;
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -123,7 +135,7 @@ export function FitnessScreen({ onNavigate }: FitnessScreenProps) {
               <button
                 type="button"
                 aria-label="上个月"
-                onClick={() => setMonth(addMonths(month, -1))}
+                onClick={() => changeMonth(-1)}
               >
                 ‹
               </button>
@@ -131,7 +143,8 @@ export function FitnessScreen({ onNavigate }: FitnessScreenProps) {
               <button
                 type="button"
                 aria-label="下个月"
-                onClick={() => setMonth(addMonths(month, 1))}
+                disabled={!canGoNextMonth}
+                onClick={() => changeMonth(1)}
               >
                 ›
               </button>

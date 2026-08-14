@@ -16,7 +16,7 @@
     <button class="round-control" bindtap="stopWorkout" disabled="{{status === 'finishing'}}">×</button>
     <view class="workout-title">
       <text>{{exerciseLabel}}</text>
-      <text class="recording-state">{{recordingAvailable ? '原始画面录制中' : '本次不录屏'}}</text>
+      <text class="recording-state">{{recordingLabel}}</text>
     </view>
     <button class="round-control pause-control" bindtap="togglePaused" disabled="{{status !== 'tracking'}}">
       {{paused ? '▶' : 'Ⅱ'}}

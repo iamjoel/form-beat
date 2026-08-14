@@ -38,7 +38,12 @@
           <view class="month-switcher">
             <button data-delta="-1" aria-label="上个月" bindtap="changeMonth">‹</button>
             <text>{{monthLabel}}</text>
-            <button data-delta="1" aria-label="下个月" bindtap="changeMonth">›</button>
+            <button
+              data-delta="1"
+              aria-label="下个月"
+              disabled="{{!canGoNextMonth}}"
+              bindtap="changeMonth"
+            >›</button>
           </view>
         </view>
         <view class="calendar-weekdays">
@@ -79,11 +84,11 @@
     <button class="nav-button nav-button--active" aria-label="体能，当前页面">
       <view class="nav-glyph nav-glyph--calendar"></view><text>体能</text>
     </button>
-    <button class="nav-button" aria-label="动作" bindtap="openActions">
-      <view class="nav-glyph nav-glyph--actions"></view><text>动作</text>
-    </button>
     <button class="nav-button" aria-label="锻炼" bindtap="openWorkout">
       <view class="nav-glyph nav-glyph--workout"></view><text>锻炼</text>
+    </button>
+    <button class="nav-button" aria-label="动作" bindtap="openActions">
+      <view class="nav-glyph nav-glyph--actions"></view><text>动作</text>
     </button>
     <button class="nav-button" aria-label="个人" bindtap="openProfile">
       <view class="nav-glyph nav-glyph--profile"></view><text>个人</text>

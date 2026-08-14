@@ -175,6 +175,11 @@
   line-height: 1;
 }
 
+.month-switcher button[disabled] {
+  color: #aeb0a7;
+  opacity: 0.36;
+}
+
 .month-switcher text {
   min-width: 172rpx;
   height: 80rpx;

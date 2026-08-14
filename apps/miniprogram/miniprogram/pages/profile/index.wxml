@@ -26,7 +26,7 @@
 
       <view class="recording-section">
         <text class="setting-title">录屏头像</text>
-        <text class="setting-copy">训练录像中用 Emoji 遮挡面部，仅影响之后的录屏。</text>
+        <text class="setting-copy">头像会写入训练录像并遮挡面部；设备不支持安全合成时，本次不会保存原始录像。</text>
         <view class="recording-options">
           <button
             wx:for="{{recordingOptions}}"
@@ -50,11 +50,11 @@
     <button class="nav-button" aria-label="体能" bindtap="openFitness">
       <view class="nav-glyph nav-glyph--calendar"></view><text>体能</text>
     </button>
-    <button class="nav-button" aria-label="动作" bindtap="openActions">
-      <view class="nav-glyph nav-glyph--actions"></view><text>动作</text>
-    </button>
     <button class="nav-button" aria-label="锻炼" bindtap="openWorkout">
       <view class="nav-glyph nav-glyph--workout"></view><text>锻炼</text>
+    </button>
+    <button class="nav-button" aria-label="动作" bindtap="openActions">
+      <view class="nav-glyph nav-glyph--actions"></view><text>动作</text>
     </button>
     <button class="nav-button nav-button--active" aria-label="个人，当前页面">
       <view class="nav-glyph nav-glyph--profile"></view><text>个人</text>

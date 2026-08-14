@@ -61,11 +61,11 @@
     <button class="nav-button" aria-label="体能" bindtap="openFitness">
       <view class="nav-glyph nav-glyph--calendar"></view><text>体能</text>
     </button>
-    <button class="nav-button nav-button--active" aria-label="动作，当前页面">
-      <view class="nav-glyph nav-glyph--actions"></view><text>动作</text>
-    </button>
     <button class="nav-button" aria-label="锻炼" bindtap="openWorkout">
       <view class="nav-glyph nav-glyph--workout"></view><text>锻炼</text>
+    </button>
+    <button class="nav-button nav-button--active" aria-label="动作，当前页面">
+      <view class="nav-glyph nav-glyph--actions"></view><text>动作</text>
     </button>
     <button class="nav-button" aria-label="个人" bindtap="openProfile">
       <view class="nav-glyph nav-glyph--profile"></view><text>个人</text>

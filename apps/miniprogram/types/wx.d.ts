@@ -40,6 +40,24 @@ interface CameraContext {
   }): void;
 }
 
+interface MiniProgramMediaRecorderResult {
+  tempFilePath: string;
+  duration: number;
+  fileSize: number;
+}
+
+interface MiniProgramMediaRecorder {
+  on(
+    eventName: "start" | "stop" | "pause" | "resume" | "timeupdate",
+    callback: (...args: any[]) => void,
+  ): void;
+  off(eventName: string, callback: (...args: any[]) => void): void;
+  start(): Promise<void> | void;
+  requestFrame(callback: () => void): Promise<void> | void;
+  stop(): Promise<MiniProgramMediaRecorderResult> | void;
+  destroy(): Promise<void> | void;
+}
+
 interface VKPoint {
   x: number;
   y: number;
@@ -101,10 +119,21 @@ interface SelectorQuery {
 interface WxApi {
   createCameraContext(): CameraContext;
   createOffscreenCanvas(options: {
-    type: "2d";
+    type: "2d" | "webgl";
     width: number;
     height: number;
   }): OffscreenCanvas;
+  createMediaRecorder?: (
+    canvas: OffscreenCanvas,
+    options: {
+      duration?: number;
+      videoBitsPerSecond?: number;
+      gop?: number;
+      fps?: number;
+      width?: number;
+      height?: number;
+    },
+  ) => MiniProgramMediaRecorder;
   createVKSession(options: {
     track: { body: { mode: 1 | 2 } };
     version?: "v1" | "v2";
