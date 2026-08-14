@@ -20,8 +20,8 @@ import {
 
 const PREFERENCES_KEY = "workout-detect:preferences:v1";
 const DEMO_SPRITE_PATHS: Record<HuskySpriteAssetId, string> = {
-  "husky-exercise-sprites-v2": "/assets/generated/husky-exercise-sprites-v2.png",
-  "husky-exercise-sprites-v3": "/assets/generated/husky-exercise-sprites-v3.png",
+  "husky-exercise-sprites-v2": "/assets/generated/husky-exercise-sprites-v2.jpg",
+  "husky-exercise-sprites-v3": "/assets/generated/husky-exercise-sprites-v3.jpg",
 };
 
 type DemoLoadStatus = "loading" | "ready" | "error";

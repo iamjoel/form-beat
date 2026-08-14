@@ -110,7 +110,7 @@ export function ExerciseLibraryScreen({
                     </span>
                     <span className="exercise-catalog-copy">
                       <strong>{entry.label}</strong>
-                      <small>{entry.difficulty} · {entry.equipment} · {primaryGroup.label}</small>
+                      <small>{entry.difficulty} · {primaryGroup.label}</small>
                     </span>
                     <span className="exercise-catalog-arrow" aria-hidden="true">→</span>
                   </button>
@@ -157,7 +157,7 @@ function ExerciseDetail({
           </svg>
         </button>
         <div>
-          <p>{entry.difficulty} · {entry.equipment}</p>
+          <p>{entry.difficulty}</p>
           <h1 id="exercise-detail-title">{entry.label}</h1>
         </div>
       </header>

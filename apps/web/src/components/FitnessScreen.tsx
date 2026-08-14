@@ -95,7 +95,6 @@ export function FitnessScreen({ onNavigate }: FitnessScreenProps) {
       <main className="fitness-content" aria-labelledby="fitness-title">
         <header className="fitness-header">
           <h1 id="fitness-title">体能</h1>
-          <p>{MONTH_FORMATTER.format(today)}</p>
         </header>
 
         <section className="today-summary" aria-labelledby="today-title">

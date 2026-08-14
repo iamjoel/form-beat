@@ -47,7 +47,7 @@
       bindtap="startWorkout"
     >开始</button>
 
-    <view class="main-nav">
+    <view class="main-nav setup-nav">
       <button class="nav-button" aria-label="体能" bindtap="openFitness">
         <view class="nav-glyph nav-glyph--calendar"></view>
         <text>体能</text>

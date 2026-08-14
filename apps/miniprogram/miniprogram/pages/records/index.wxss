@@ -18,9 +18,6 @@
 
 .fitness-header {
   min-height: 88rpx;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
 }
 
 .fitness-title {
@@ -28,11 +25,6 @@
   font-size: 48rpx;
   font-weight: 760;
   letter-spacing: -0.04em;
-}
-
-.fitness-date {
-  color: #686a63;
-  font-size: 24rpx;
 }
 
 .today-panel {
@@ -161,6 +153,7 @@
 }
 
 .month-switcher {
+  height: 80rpx;
   display: flex;
   align-items: center;
 }
@@ -168,6 +161,11 @@
 .month-switcher button {
   width: 80rpx;
   height: 80rpx;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
   border-radius: 50%;
@@ -179,8 +177,14 @@
 
 .month-switcher text {
   min-width: 172rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   font-size: 24rpx;
   font-weight: 650;
+  line-height: 1;
   text-align: center;
 }
 
@@ -198,6 +202,8 @@
 .calendar-weekdays text,
 .calendar-cell {
   width: 14.2857%;
+  min-width: 0;
+  flex: 0 0 14.2857%;
 }
 
 .calendar-weekdays text {
@@ -221,25 +227,47 @@
 .calendar-day {
   position: relative;
   width: 92rpx;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   margin: 0 auto;
   padding: 0;
-  border-radius: 50%;
   background: transparent;
   color: #171813;
-  font-size: 25rpx;
-  font-weight: 580;
+  line-height: 1;
 }
 
-.calendar-day[disabled] {
-  opacity: 1;
+.calendar-day--interactive {
+  max-width: 92rpx;
+  background: transparent;
+}
+
+.calendar-day-visual {
+  position: relative;
+  width: 72rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border-radius: 50%;
+}
+
+.calendar-day-visual text {
+  position: relative;
+  z-index: 1;
   color: #171813;
+  font-size: 26rpx;
+  font-weight: 650;
+  line-height: 1;
 }
 
-.calendar-day--active {
+.calendar-day-visual--active {
   background: #c8ef3f;
+}
+
+.calendar-day-visual--active text {
   font-weight: 760;
 }
 
@@ -249,10 +277,11 @@
 
 .day-dot {
   position: absolute;
-  right: 18rpx;
-  bottom: 13rpx;
+  right: 10rpx;
+  bottom: 8rpx;
   width: 7rpx;
   height: 7rpx;
+  z-index: 1;
   border-radius: 50%;
   background: #171813;
 }

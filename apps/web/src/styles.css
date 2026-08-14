@@ -1434,10 +1434,7 @@
   }
 
   .fitness-header {
-    display: flex;
     min-height: 3.5rem;
-    align-items: baseline;
-    justify-content: space-between;
   }
 
   .fitness-header h1,
@@ -1445,12 +1442,6 @@
     font-size: 1.5rem;
     font-weight: 760;
     letter-spacing: -0.04em;
-  }
-
-  .fitness-header p {
-    font-size: 0.75rem;
-    font-variant-numeric: tabular-nums;
-    color: var(--muted);
   }
 
   .today-summary {

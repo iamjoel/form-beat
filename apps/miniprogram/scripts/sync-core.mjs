@@ -1,4 +1,4 @@
-import { copyFile, mkdir } from "node:fs/promises";
+import { copyFile, mkdir, rm } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -10,6 +10,10 @@ const targetRoot = resolve(
   "apps/miniprogram/miniprogram/shared/core",
 );
 const assetNames = [
+  "husky-exercise-sprites-v2.jpg",
+  "husky-exercise-sprites-v3.jpg",
+];
+const obsoleteAssetNames = [
   "husky-exercise-sprites-v2.png",
   "husky-exercise-sprites-v3.png",
 ];
@@ -47,6 +51,17 @@ for (const assetName of assetNames) {
   );
   await mkdir(dirname(targetAsset), { recursive: true });
   await copyFile(sourceAsset, targetAsset);
+}
+
+for (const assetName of obsoleteAssetNames) {
+  await rm(
+    resolve(
+      repositoryRoot,
+      "apps/miniprogram/miniprogram/assets/generated",
+      assetName,
+    ),
+    { force: true },
+  );
 }
 
 console.log(`Synced shared core to ${targetRoot}`);

@@ -3,7 +3,6 @@
     <view class="fitness-content">
       <view class="fitness-header">
         <text class="fitness-title">体能</text>
-        <text class="fitness-date">{{currentDateLabel}}</text>
       </view>
 
       <view class="today-panel">
@@ -48,16 +47,26 @@
         <view class="calendar-grid">
           <view wx:for="{{calendarCells}}" wx:key="key" class="calendar-cell">
             <view wx:if="{{item.blank}}" class="calendar-blank"></view>
+            <view
+              wx:elif="{{!item.hasWorkout}}"
+              class="calendar-day {{item.isToday ? 'calendar-day--today' : ''}}"
+              aria-label="{{item.ariaLabel}}"
+            >
+              <view class="calendar-day-visual">
+                <text>{{item.day}}</text>
+              </view>
+            </view>
             <button
               wx:else
-              class="calendar-day {{item.hasWorkout ? 'calendar-day--active' : ''}} {{item.isToday ? 'calendar-day--today' : ''}}"
-              disabled="{{!item.hasWorkout}}"
+              class="calendar-day calendar-day--interactive {{item.isToday ? 'calendar-day--today' : ''}}"
               data-date="{{item.key}}"
               aria-label="{{item.ariaLabel}}"
               bindtap="openDay"
             >
-              <text>{{item.day}}</text>
-              <view wx:if="{{item.hasWorkout}}" class="day-dot"></view>
+              <view class="calendar-day-visual calendar-day-visual--active">
+                <text>{{item.day}}</text>
+                <view class="day-dot"></view>
+              </view>
             </button>
           </view>
         </view>

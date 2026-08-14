@@ -55,7 +55,7 @@ function rows(filter: MuscleFilter): CatalogRow[] {
     id: entry.id,
     index: String(index + 1).padStart(2, "0"),
     label: entry.label,
-    meta: `${entry.difficulty} · ${entry.equipment} · ${getMuscleGroup(entry.primaryMuscleGroup).label}`,
+    meta: `${entry.difficulty} · ${getMuscleGroup(entry.primaryMuscleGroup).label}`,
   }));
 }
 

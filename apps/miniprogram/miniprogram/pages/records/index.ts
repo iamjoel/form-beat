@@ -15,7 +15,6 @@ interface CalendarCell {
 interface FitnessPageData {
   weekdays: readonly string[];
   calendarCells: CalendarCell[];
-  currentDateLabel: string;
   monthLabel: string;
   todayKey: string;
   todaySessions: number;
@@ -38,7 +37,6 @@ Page({
   data: {
     weekdays: WEEKDAYS,
     calendarCells: [],
-    currentDateLabel: "",
     monthLabel: "",
     todayKey: "",
     todaySessions: 0,
@@ -66,7 +64,6 @@ Page({
     const seconds = todayRecords.reduce((total, record) => total + record.durationSeconds, 0);
     this.setData({
       todayKey,
-      currentDateLabel: `${today.getFullYear()}年${today.getMonth() + 1}月`,
       todaySessions: todayRecords.length,
       todayReps: reps,
       todayDuration: formatCompactDuration(seconds),

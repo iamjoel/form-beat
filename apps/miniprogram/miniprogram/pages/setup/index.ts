@@ -14,7 +14,7 @@ import {
 
 const PREFERENCES_KEY = "workout-detect:preferences:v1";
 const DEMO_DISMISSED_STORAGE_KEY = "workout-detect:exercise-demo-dismissed:v1";
-const DEMO_SPRITE_PATH = "/assets/generated/husky-exercise-sprites-v2.png";
+const DEMO_SPRITE_PATH = "/assets/generated/husky-exercise-sprites-v2.jpg";
 const MIN_TARGET = 1;
 const MAX_TARGET = 99;
 
