@@ -1,7 +1,7 @@
 .action-detail-page {
   min-height: 100vh;
   box-sizing: border-box;
-  padding: calc(20rpx + env(safe-area-inset-top)) 32rpx calc(144rpx + env(safe-area-inset-bottom));
+  padding: calc(96rpx + env(safe-area-inset-top)) 32rpx calc(144rpx + env(safe-area-inset-bottom));
   background: #f7f7f2;
 }
 
@@ -12,12 +12,12 @@
 }
 
 .detail-back {
-  width: 96rpx;
+  width: 72rpx;
   height: 96rpx;
-  flex: 0 0 96rpx;
+  flex: 0 0 72rpx;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   margin: 0;
   padding: 0 8rpx 10rpx 0;
   background: transparent;
@@ -27,23 +27,19 @@
   line-height: 1;
 }
 
+.detail-back--pressed {
+  opacity: 0.55;
+}
+
 .detail-heading {
   min-width: 0;
 }
 
-.detail-meta,
 .detail-title {
   display: block;
 }
 
-.detail-meta {
-  color: #686a63;
-  font-size: 21rpx;
-  font-weight: 680;
-}
-
 .detail-title {
-  margin-top: 2rpx;
   font-size: 54rpx;
   font-weight: 780;
   letter-spacing: -0.05em;
@@ -52,16 +48,6 @@
 .demo-section {
   position: relative;
   margin-top: 32rpx;
-  padding: 0 10rpx 10rpx 0;
-}
-
-.demo-accent {
-  position: absolute;
-  top: 20rpx;
-  right: 0;
-  bottom: 50rpx;
-  left: 20rpx;
-  background: #c8ef3f;
 }
 
 .action-demo-frame {
@@ -75,17 +61,16 @@
   height: 100%;
   box-sizing: border-box;
   display: block;
-  border: 4rpx solid #171813;
   background: #e9eadf;
 }
 
 .demo-status {
   position: absolute;
   z-index: 1;
-  top: 4rpx;
-  right: 4rpx;
-  bottom: 4rpx;
-  left: 4rpx;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   display: flex;
   flex-direction: column;
   gap: 24rpx;
@@ -111,16 +96,6 @@
   to {
     transform: rotate(360deg);
   }
-}
-
-.demo-caption {
-  position: relative;
-  display: block;
-  margin-top: 20rpx;
-  color: #686a63;
-  font-size: 20rpx;
-  font-weight: 720;
-  letter-spacing: 0.12em;
 }
 
 .intro-section,
@@ -226,13 +201,19 @@
 .detail-action button {
   width: 100%;
   height: 104rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   margin: 0;
+  padding: 0 24rpx;
   border: 4rpx solid #171813;
   border-radius: 24rpx;
   background: #c8ef3f;
   color: #171813;
   font-size: 31rpx;
   font-weight: 720;
+  line-height: 1;
 }
 
 .detail-action button[disabled] {

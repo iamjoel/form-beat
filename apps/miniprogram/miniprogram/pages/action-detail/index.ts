@@ -29,7 +29,6 @@ type DemoLoadStatus = "loading" | "ready" | "error";
 interface ActionDetailData {
   exerciseId: CatalogExerciseId;
   label: string;
-  meta: string;
   canStartWorkout: boolean;
   summary: string;
   muscleGroups: { id: string; label: string }[];
@@ -57,7 +56,6 @@ function detailData(exerciseId: CatalogExerciseId): ActionDetailData {
   return {
     exerciseId,
     label: entry.label,
-    meta: `${entry.difficulty} · ${entry.equipment}`,
     canStartWorkout: entry.trainingExerciseId !== null,
     summary: entry.summary,
     muscleGroups: entry.muscleGroups.map((groupId) => ({

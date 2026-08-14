@@ -30,12 +30,14 @@
       show-scrollbar="false"
     >
       <view wx:if="{{rows.length > 0}}" class="action-list">
-        <button
+        <view
           wx:for="{{rows}}"
           wx:key="id"
           class="action-row"
           data-id="{{item.id}}"
+          role="button"
           aria-label="查看{{item.label}}详情"
+          hover-class="action-row--pressed"
           bindtap="openAction"
         >
           <text class="action-index">{{item.index}}</text>
@@ -44,7 +46,7 @@
             <text class="action-meta">{{item.meta}}</text>
           </view>
           <view class="action-arrow">→</view>
-        </button>
+        </view>
       </view>
 
       <view wx:else class="actions-empty">

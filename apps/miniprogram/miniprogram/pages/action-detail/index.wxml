@@ -1,14 +1,18 @@
 <view class="action-detail-page">
   <view class="detail-header">
-    <button class="detail-back" aria-label="返回动作列表" bindtap="goBack">‹</button>
+    <view
+      class="detail-back"
+      role="button"
+      aria-label="返回动作列表"
+      hover-class="detail-back--pressed"
+      bindtap="goBack"
+    >‹</view>
     <view class="detail-heading">
-      <text class="detail-meta">{{meta}}</text>
       <text class="detail-title">{{label}}</text>
     </view>
   </view>
 
   <view class="demo-section">
-    <view class="demo-accent"></view>
     <view class="action-demo-frame">
       <canvas
         id="action-demo-canvas"
@@ -26,7 +30,6 @@
         <text>{{demoStatus === 'loading' ? '正在准备动作演示' : '动作演示加载失败'}}</text>
       </view>
     </view>
-    <text class="demo-caption">哈士奇示范</text>
   </view>
 
   <view class="intro-section">
