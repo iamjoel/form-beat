@@ -85,6 +85,15 @@
           type="2d"
           aria-label="哈士奇正在演示{{exerciseLabel}}，画面标有训练时使用的骨骼点和关键角度"
         ></canvas>
+        <view
+          wx:if="{{demoStatus !== 'ready'}}"
+          class="demo-status"
+          role="status"
+          aria-live="polite"
+        >
+          <view wx:if="{{demoStatus === 'loading'}}" class="demo-loading-spinner"></view>
+          <text>{{demoStatus === 'loading' ? '正在准备动作演示' : '动作演示加载失败'}}</text>
+        </view>
       </view>
 
       <checkbox-group class="demo-preference" bindchange="changeDemoPreference">

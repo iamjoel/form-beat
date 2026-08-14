@@ -90,36 +90,41 @@ export function ExerciseLibraryScreen({
           <p className="muscle-filter-focus">{getMuscleGroup(muscleFilter).focus}</p>
         )}
 
-        {visibleExercises.length > 0 ? (
-          <section className="exercise-catalog-list" aria-label="动作列表">
-            {visibleExercises.map((entry, index) => {
-              const primaryGroup = getMuscleGroup(entry.primaryMuscleGroup);
-              return (
-                <button
-                  className="exercise-catalog-row"
-                  type="button"
-                  key={entry.id}
-                  onClick={() => onOpenExercise(entry.id)}
-                >
-                  <span className="exercise-catalog-index">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <span className="exercise-catalog-copy">
-                    <strong>{entry.label}</strong>
-                    <small>{entry.difficulty} · {entry.equipment} · {primaryGroup.label}</small>
-                  </span>
-                  <span className="exercise-catalog-arrow" aria-hidden="true">→</span>
-                </button>
-              );
-            })}
-          </section>
-        ) : (
-          <section className="exercise-catalog-empty">
-            <span aria-hidden="true">—</span>
-            <h2>这组动作正在校准</h2>
-            <p>先从其他肌群开始，完成识别测试后会在这里出现。</p>
-          </section>
-        )}
+        <div
+          className="exercise-library-scroll"
+          data-filtered={muscleFilter === "all" ? "false" : "true"}
+        >
+          {visibleExercises.length > 0 ? (
+            <section className="exercise-catalog-list" aria-label="动作列表">
+              {visibleExercises.map((entry, index) => {
+                const primaryGroup = getMuscleGroup(entry.primaryMuscleGroup);
+                return (
+                  <button
+                    className="exercise-catalog-row"
+                    type="button"
+                    key={entry.id}
+                    onClick={() => onOpenExercise(entry.id)}
+                  >
+                    <span className="exercise-catalog-index">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                    <span className="exercise-catalog-copy">
+                      <strong>{entry.label}</strong>
+                      <small>{entry.difficulty} · {entry.equipment} · {primaryGroup.label}</small>
+                    </span>
+                    <span className="exercise-catalog-arrow" aria-hidden="true">→</span>
+                  </button>
+                );
+              })}
+            </section>
+          ) : (
+            <section className="exercise-catalog-empty">
+              <span aria-hidden="true">—</span>
+              <h2>这组动作正在校准</h2>
+              <p>先从其他肌群开始，完成识别测试后会在这里出现。</p>
+            </section>
+          )}
+        </div>
       </main>
 
       <MainNav

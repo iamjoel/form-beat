@@ -9,12 +9,23 @@
 
   <view class="demo-section">
     <view class="demo-accent"></view>
-    <canvas
-      id="action-demo-canvas"
-      class="action-demo-canvas"
-      type="2d"
-      aria-label="哈士奇正在演示{{label}}"
-    ></canvas>
+    <view class="action-demo-frame">
+      <canvas
+        id="action-demo-canvas"
+        class="action-demo-canvas"
+        type="2d"
+        aria-label="哈士奇正在演示{{label}}"
+      ></canvas>
+      <view
+        wx:if="{{demoStatus !== 'ready'}}"
+        class="demo-status"
+        role="status"
+        aria-live="polite"
+      >
+        <view wx:if="{{demoStatus === 'loading'}}" class="demo-loading-spinner"></view>
+        <text>{{demoStatus === 'loading' ? '正在准备动作演示' : '动作演示加载失败'}}</text>
+      </view>
+    </view>
     <text class="demo-caption">哈士奇示范</text>
   </view>
 

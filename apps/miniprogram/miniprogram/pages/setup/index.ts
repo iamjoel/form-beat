@@ -18,6 +18,8 @@ const DEMO_SPRITE_PATH = "/assets/generated/husky-exercise-sprites-v2.png";
 const MIN_TARGET = 1;
 const MAX_TARGET = 99;
 
+type DemoLoadStatus = "loading" | "ready" | "error";
+
 interface Preferences {
   exerciseId: ExerciseId;
   target: number;
@@ -29,6 +31,7 @@ interface SetupPageInstance {
     exerciseLabel: string;
     showDemo: boolean;
     skipDemo: boolean;
+    demoStatus: DemoLoadStatus;
   };
   setData(
     data: Partial<SetupPageInstance["data"]>,
@@ -40,6 +43,7 @@ interface SetupPageInstance {
   demoCharacterRenderer?: DemoCharacterRenderer;
   demoAnimationTimer?: ReturnType<typeof setInterval>;
   demoAnimationStartedAt?: number;
+  demoLoadId?: number;
   startDemoAnimation(): void;
   stopDemoAnimation(): void;
   navigateToWorkout(): void;
@@ -79,6 +83,7 @@ Page({
     ...getExerciseCopy(initialPreferences.exerciseId),
     showDemo: false,
     skipDemo: false,
+    demoStatus: "loading",
   },
 
   onShow(this: SetupPageInstance) {
@@ -89,6 +94,7 @@ Page({
       ...getExerciseCopy(preferences.exerciseId),
       showDemo: false,
       skipDemo: false,
+      demoStatus: "loading",
     });
   },
 
@@ -139,18 +145,23 @@ Page({
       this.navigateToWorkout();
       return;
     }
-    this.setData({ showDemo: true, skipDemo: false }, () => {
+    this.setData({ showDemo: true, skipDemo: false, demoStatus: "loading" }, () => {
       this.startDemoAnimation();
     });
   },
 
   startDemoAnimation(this: SetupPageInstance) {
     this.stopDemoAnimation();
+    const loadId = this.demoLoadId;
+    this.setData({ demoStatus: "loading" });
     const query = wx.createSelectorQuery();
     query.select("#exercise-demo-canvas").fields({ node: true, size: true });
     query.exec((results) => {
       const result = results[0];
       if (!this.data.showDemo || !result?.node || !result.width || !result.height) {
+        if (this.data.showDemo && this.demoLoadId === loadId) {
+          this.setData({ demoStatus: "error" });
+        }
         return;
       }
       const pixelRatio = Math.min(2, wx.getSystemInfoSync().pixelRatio || 1);
@@ -165,7 +176,12 @@ Page({
       const project = getExerciseDemoProject(this.data.exerciseId);
 
       const render = () => {
-        if (!this.data.showDemo || !this.demoCanvasContext || !this.demoCanvasSize) {
+        if (
+          this.demoLoadId !== loadId ||
+          !this.data.showDemo ||
+          !this.demoCanvasContext ||
+          !this.demoCanvasSize
+        ) {
           return;
         }
         const elapsedMs = Date.now() - (this.demoAnimationStartedAt ?? Date.now());
@@ -180,24 +196,29 @@ Page({
 
       let started = false;
       const startRendering = () => {
-        if (started || !this.data.showDemo) return;
+        if (started || this.demoLoadId !== loadId || !this.data.showDemo) return;
         started = true;
         render();
+        this.setData({ demoStatus: "ready" });
         this.demoAnimationTimer = setInterval(render, 33);
       };
       const sprite = result.node.createImage() as DemoSpriteImage;
       sprite.onload = () => {
+        if (this.demoLoadId !== loadId) return;
         this.demoCharacterRenderer = createHuskySpriteRenderer({
           "husky-exercise-sprites-v2": sprite,
         });
         startRendering();
       };
-      sprite.onerror = startRendering;
+      sprite.onerror = () => {
+        if (this.demoLoadId === loadId) this.setData({ demoStatus: "error" });
+      };
       sprite.src = DEMO_SPRITE_PATH;
     });
   },
 
   stopDemoAnimation(this: SetupPageInstance) {
+    this.demoLoadId = (this.demoLoadId ?? 0) + 1;
     if (this.demoAnimationTimer) clearInterval(this.demoAnimationTimer);
     this.demoAnimationTimer = undefined;
     this.demoCanvasNode = undefined;

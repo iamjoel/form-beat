@@ -8,6 +8,7 @@ import {
   type ExerciseId,
 } from "@workout-detect/core/domain/exercises";
 import {
+  EXERCISE_DEMO_SPRITE_CROPS,
   getExerciseDemoCriticalMarkup,
   getExerciseDemoSpriteCenter,
   type HuskySpriteAssetId,
@@ -26,6 +27,13 @@ import {
   createHuskySpriteRenderer,
   type DemoCharacterRenderer,
 } from "../lib/demo-character-renderer";
+
+const DEMO_SPRITE_URLS: Record<HuskySpriteAssetId, string> = {
+  "husky-exercise-sprites-v2": huskySpriteUrl,
+  "husky-exercise-sprites-v3": huskySpriteV3Url,
+};
+
+type DemoLoadStatus = "loading" | "ready" | "error";
 
 interface ExerciseDemoScreenProps {
   exerciseId: ExerciseId;
@@ -183,31 +191,32 @@ function drawDemo(
 
 function useExerciseDemoCanvas(exerciseId: CatalogExerciseId) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [loadState, setLoadState] = useState<{
+    exerciseId: CatalogExerciseId;
+    status: DemoLoadStatus;
+  }>({ exerciseId, status: "loading" });
 
   useEffect(() => {
+    setLoadState({ exerciseId, status: "loading" });
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) return undefined;
     const context = canvas.getContext("2d");
-    if (!context) return;
+    if (!context) {
+      setLoadState({ exerciseId, status: "error" });
+      return undefined;
+    }
     const project = getExerciseDemoProject(exerciseId);
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const startedAt = performance.now();
-    const sprites: Partial<Record<HuskySpriteAssetId, HTMLImageElement>> = {};
-    const characterRenderer: DemoCharacterRenderer = createHuskySpriteRenderer(sprites);
     let animationFrame = 0;
-    for (const [assetId, url] of [
-      ["husky-exercise-sprites-v2", huskySpriteUrl],
-      ["husky-exercise-sprites-v3", huskySpriteV3Url],
-    ] as const) {
-      const sprite = new Image();
-      sprite.decoding = "async";
-      sprite.onload = () => {
-        sprites[assetId] = sprite;
-      };
-      sprite.src = url;
-    }
+    let disposed = false;
+    let sprite: HTMLImageElement | null = null;
+    let startedAt = 0;
 
-    const render = (timestamp: number) => {
+    const render = (
+      timestamp: number,
+      characterRenderer: DemoCharacterRenderer | null,
+    ) => {
+      if (disposed) return;
       const bounds = canvas.getBoundingClientRect();
       const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
       const pixelWidth = Math.max(1, Math.round(bounds.width * pixelRatio));
@@ -228,14 +237,51 @@ function useExerciseDemoCanvas(exerciseId: CatalogExerciseId) {
         bounds.width,
         bounds.height,
       );
-      if (!reduceMotion) animationFrame = requestAnimationFrame(render);
+      if (!reduceMotion) {
+        animationFrame = requestAnimationFrame((nextTimestamp) => {
+          render(nextTimestamp, characterRenderer);
+        });
+      }
     };
 
-    animationFrame = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(animationFrame);
+    const startRendering = (characterRenderer: DemoCharacterRenderer | null) => {
+      if (disposed) return;
+      startedAt = performance.now();
+      render(startedAt, characterRenderer);
+      if (!disposed) setLoadState({ exerciseId, status: "ready" });
+    };
+
+    if (!project.reference.visible) {
+      startRendering(null);
+    } else {
+      const assetId = EXERCISE_DEMO_SPRITE_CROPS[project.reference.exerciseId].assetId;
+      sprite = new Image();
+      sprite.decoding = "async";
+      sprite.onload = () => {
+        if (disposed || !sprite) return;
+        const characterRenderer = createHuskySpriteRenderer({ [assetId]: sprite });
+        startRendering(characterRenderer);
+      };
+      sprite.onerror = () => {
+        if (!disposed) setLoadState({ exerciseId, status: "error" });
+      };
+      sprite.src = DEMO_SPRITE_URLS[assetId];
+    }
+
+    return () => {
+      disposed = true;
+      if (sprite) {
+        sprite.onload = null;
+        sprite.onerror = null;
+      }
+      cancelAnimationFrame(animationFrame);
+    };
   }, [exerciseId]);
 
-  return canvasRef;
+  return {
+    canvasRef,
+    status: loadState.exerciseId === exerciseId ? loadState.status : "loading",
+  };
 }
 
 export function ExerciseDemoCanvas({
@@ -245,15 +291,30 @@ export function ExerciseDemoCanvas({
   exerciseId: CatalogExerciseId;
   className?: string;
 }) {
-  const canvasRef = useExerciseDemoCanvas(exerciseId);
+  const { canvasRef, status } = useExerciseDemoCanvas(exerciseId);
   const exercise = getExerciseCatalogEntry(exerciseId);
   return (
-    <canvas
-      ref={canvasRef}
-      className={className}
-      role="img"
-      aria-label={`哈士奇正在演示${exercise.label}`}
-    />
+    <>
+      <canvas
+        ref={canvasRef}
+        className={className}
+        role="img"
+        aria-hidden={status !== "ready"}
+        aria-label={`哈士奇正在演示${exercise.label}`}
+      />
+      {status === "ready" ? null : (
+        <div
+          className="exercise-demo-status"
+          role="status"
+          aria-live="polite"
+        >
+          {status === "loading" ? (
+            <span className="loading-spinner" aria-hidden="true" />
+          ) : null}
+          <p>{status === "loading" ? "正在准备动作演示" : "动作演示加载失败"}</p>
+        </div>
+      )}
+    </>
   );
 }
 

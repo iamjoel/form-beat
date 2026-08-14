@@ -64,14 +64,53 @@
   background: #c8ef3f;
 }
 
-.action-demo-canvas {
+.action-demo-frame {
   position: relative;
   width: 100%;
   height: 676rpx;
+}
+
+.action-demo-canvas {
+  width: 100%;
+  height: 100%;
   box-sizing: border-box;
   display: block;
   border: 4rpx solid #171813;
   background: #e9eadf;
+}
+
+.demo-status {
+  position: absolute;
+  z-index: 1;
+  top: 4rpx;
+  right: 4rpx;
+  bottom: 4rpx;
+  left: 4rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 24rpx;
+  align-items: center;
+  justify-content: center;
+  background: #e9eadf;
+  color: #686a63;
+  font-size: 25rpx;
+  font-weight: 650;
+}
+
+.demo-loading-spinner {
+  width: 48rpx;
+  height: 48rpx;
+  box-sizing: border-box;
+  border: 4rpx solid #686a63;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: demo-spin 700ms linear infinite;
+}
+
+@keyframes demo-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .demo-caption {

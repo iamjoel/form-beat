@@ -1,29 +1,34 @@
 <view class="actions-page">
-  <scroll-view class="actions-scroll" scroll-y enhanced show-scrollbar="false">
-    <view class="actions-content">
-      <view class="actions-header">
-        <view>
-          <text class="actions-title">动作</text>
-          <text class="actions-subtitle">按七大肌群找到自重动作</text>
-        </view>
-        <text class="actions-count">{{total}} 个自重动作</text>
+  <view class="actions-content">
+    <view class="actions-header">
+      <view>
+        <text class="actions-title">动作</text>
+        <text class="actions-subtitle">按七大肌群找到自重动作</text>
       </view>
+      <text class="actions-count">{{total}} 个自重动作</text>
+    </view>
 
-      <scroll-view class="muscle-filter" scroll-x enhanced show-scrollbar="false">
-        <view class="muscle-filter-row">
-          <button
-            wx:for="{{filters}}"
-            wx:key="id"
-            class="muscle-filter-button {{item.active ? 'muscle-filter-button--active' : ''}}"
-            data-id="{{item.id}}"
-            aria-label="按{{item.label}}筛选"
-            bindtap="selectMuscle"
-          >{{item.label}}</button>
-        </view>
-      </scroll-view>
+    <scroll-view class="muscle-filter" scroll-x enhanced show-scrollbar="false">
+      <view class="muscle-filter-row">
+        <button
+          wx:for="{{filters}}"
+          wx:key="id"
+          class="muscle-filter-button {{item.active ? 'muscle-filter-button--active' : ''}}"
+          data-id="{{item.id}}"
+          aria-label="按{{item.label}}筛选"
+          bindtap="selectMuscle"
+        >{{item.label}}</button>
+      </view>
+    </scroll-view>
 
-      <text wx:if="{{focus}}" class="muscle-focus">{{focus}}</text>
+    <text wx:if="{{focus}}" class="muscle-focus">{{focus}}</text>
 
+    <scroll-view
+      class="actions-scroll {{focus ? 'actions-scroll--filtered' : ''}}"
+      scroll-y
+      enhanced
+      show-scrollbar="false"
+    >
       <view wx:if="{{rows.length > 0}}" class="action-list">
         <button
           wx:for="{{rows}}"
@@ -47,8 +52,8 @@
         <text class="empty-title">这组动作正在校准</text>
         <text class="empty-copy">先从其他肌群开始，完成识别测试后会在这里出现。</text>
       </view>
-    </view>
-  </scroll-view>
+    </scroll-view>
+  </view>
 
   <view class="main-nav actions-nav">
     <button class="nav-button" aria-label="体能" bindtap="openFitness">

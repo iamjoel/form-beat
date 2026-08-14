@@ -412,6 +412,25 @@
     height: 100%;
   }
 
+  .exercise-demo-status {
+    position: absolute;
+    inset: 2px;
+    z-index: 1;
+    display: grid;
+    gap: 0.75rem;
+    place-content: center;
+    justify-items: center;
+    color: var(--muted);
+    background: #e9eadf;
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  .exercise-demo-status p {
+    font-size: 0.8125rem;
+    font-weight: 650;
+  }
+
   .demo-skip {
     display: inline-flex;
     min-height: 3rem;
@@ -526,15 +545,23 @@
   }
 
   .exercise-library-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    padding-top: max(1rem, env(safe-area-inset-top));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+
+  .exercise-library-scroll {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior-y: contain;
     -webkit-overflow-scrolling: touch;
-    padding-top: max(1rem, env(safe-area-inset-top));
-    padding-right: max(1rem, env(safe-area-inset-right));
     padding-bottom: 2rem;
-    padding-left: max(1rem, env(safe-area-inset-left));
   }
 
   .exercise-library-header {
@@ -615,7 +642,7 @@
     border-top: 1px solid var(--ink);
   }
 
-  .muscle-filter-focus + .exercise-catalog-list {
+  .exercise-library-scroll[data-filtered="true"] .exercise-catalog-list {
     margin-top: 0.35rem;
   }
 

@@ -7,13 +7,18 @@
 }
 
 .actions-scroll {
-  min-height: 0;
+  height: 0;
   flex: 1 1 auto;
+  min-height: 0;
 }
 
 .actions-content {
+  min-height: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
   box-sizing: border-box;
-  padding: 32rpx 32rpx 56rpx;
+  padding: 32rpx 32rpx 0;
 }
 
 .actions-header {
@@ -89,10 +94,11 @@
 
 .action-list {
   margin-top: 30rpx;
+  padding-bottom: 56rpx;
   border-top: 2rpx solid #171813;
 }
 
-.muscle-focus + .action-list {
+.actions-scroll--filtered .action-list {
   margin-top: 8rpx;
 }
 
