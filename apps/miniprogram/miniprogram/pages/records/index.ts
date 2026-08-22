@@ -12,15 +12,19 @@ interface CalendarCell {
   ariaLabel: string;
 }
 
+interface CompactDuration {
+  value: string;
+  detail: string;
+}
+
 interface FitnessPageData {
   weekdays: readonly string[];
   calendarCells: CalendarCell[];
   monthLabel: string;
   canGoNextMonth: boolean;
-  todayKey: string;
   todaySessions: number;
   todayReps: number;
-  todayDuration: string;
+  todayDuration: CompactDuration;
 }
 
 interface FitnessPageInstance {
@@ -40,10 +44,9 @@ Page({
     calendarCells: [],
     monthLabel: "",
     canGoNextMonth: false,
-    todayKey: "",
     todaySessions: 0,
     todayReps: 0,
-    todayDuration: "0秒",
+    todayDuration: { value: "0", detail: "秒" },
   } satisfies FitnessPageData,
 
   onLoad(this: FitnessPageInstance) {
@@ -65,7 +68,6 @@ Page({
     const reps = todayRecords.reduce((total, record) => total + record.completedReps, 0);
     const seconds = todayRecords.reduce((total, record) => total + record.durationSeconds, 0);
     this.setData({
-      todayKey,
       todaySessions: todayRecords.length,
       todayReps: reps,
       todayDuration: formatCompactDuration(seconds),
@@ -172,8 +174,11 @@ function toDateKey(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-function formatCompactDuration(seconds: number): string {
-  if (seconds < 60) return `${seconds}秒`;
+function formatCompactDuration(seconds: number): CompactDuration {
+  if (seconds < 60) return { value: String(seconds), detail: "秒" };
   const minutes = Math.floor(seconds / 60);
-  return `${minutes}分${seconds % 60 ? `${seconds % 60}秒` : ""}`;
+  return {
+    value: String(minutes),
+    detail: `分${seconds % 60 ? ` ${seconds % 60}秒` : ""}`,
+  };
 }

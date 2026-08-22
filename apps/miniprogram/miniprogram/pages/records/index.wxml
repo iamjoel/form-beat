@@ -1,18 +1,7 @@
 <view class="fitness-page">
   <scroll-view class="fitness-scroll" scroll-y enhanced show-scrollbar="false">
     <view class="fitness-content">
-      <view class="fitness-header">
-        <text class="fitness-title">体能</text>
-      </view>
-
       <view class="today-panel">
-        <view class="today-heading">
-          <view>
-            <text class="today-kicker">今天</text>
-            <text class="today-title">{{todaySessions > 0 ? '练过了' : '还没开始'}}</text>
-          </view>
-          <view class="today-mark">{{todaySessions > 0 ? '✓' : '—'}}</view>
-        </view>
         <view class="summary-row">
           <view class="summary-item">
             <text class="summary-label">训练</text>
@@ -24,12 +13,9 @@
           </view>
           <view class="summary-item">
             <text class="summary-label">用时</text>
-            <text class="summary-value">{{todayDuration}}</text>
+            <text class="summary-value">{{todayDuration.value}}<text>{{todayDuration.detail}}</text></text>
           </view>
         </view>
-        <button wx:if="{{todaySessions > 0}}" class="today-detail" data-date="{{todayKey}}" bindtap="openDay">
-          <text>查看今天的视频</text><text>→</text>
-        </button>
       </view>
 
       <view class="history-section">

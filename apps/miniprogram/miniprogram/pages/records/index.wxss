@@ -13,69 +13,20 @@
 
 .fitness-content {
   box-sizing: border-box;
-  padding: 32rpx 32rpx 48rpx;
-}
-
-.fitness-header {
-  min-height: 88rpx;
-}
-
-.fitness-title {
-  color: #171813;
-  font-size: 48rpx;
-  font-weight: 760;
-  letter-spacing: -0.04em;
+  padding: 0 0 48rpx;
 }
 
 .today-panel {
   box-sizing: border-box;
-  margin-top: 24rpx;
-  padding: 32rpx;
-  border-radius: 32rpx;
+  margin-top: 0;
+  padding: 40rpx 32rpx 48rpx;
   background: #171813;
   color: #f7f7f2;
 }
 
-.today-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.today-kicker,
-.today-title {
-  display: block;
-}
-
-.today-kicker {
-  color: #aeb0a7;
-  font-size: 22rpx;
-  font-weight: 650;
-}
-
-.today-title {
-  margin-top: 6rpx;
-  font-size: 54rpx;
-  font-weight: 760;
-  letter-spacing: -0.05em;
-}
-
-.today-mark {
-  width: 72rpx;
-  height: 72rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #c8ef3f;
-  color: #171813;
-  font-size: 32rpx;
-  font-weight: 800;
-}
-
 .summary-row {
   display: flex;
-  margin-top: 42rpx;
+  margin-top: 0;
 }
 
 .summary-item {
@@ -85,8 +36,16 @@
 
 .summary-item + .summary-item {
   box-sizing: border-box;
-  padding-left: 28rpx;
-  border-left: 2rpx solid rgba(247, 247, 242, 0.22);
+  padding-left: 0;
+  border-left: 0;
+}
+
+.summary-item:nth-child(2) {
+  text-align: center;
+}
+
+.summary-item:last-child {
+  text-align: right;
 }
 
 .summary-label,
@@ -96,13 +55,14 @@
 
 .summary-label {
   color: #aeb0a7;
-  font-size: 21rpx;
+  font-size: 26rpx;
+  font-weight: 600;
 }
 
 .summary-value {
-  margin-top: 8rpx;
+  margin-top: 16rpx;
   overflow: hidden;
-  font-size: 40rpx;
+  font-size: 52rpx;
   font-weight: 720;
   letter-spacing: -0.04em;
   text-overflow: ellipsis;
@@ -111,33 +71,24 @@
 
 .summary-value text {
   margin-left: 5rpx;
-  font-size: 21rpx;
+  font-size: 24rpx;
   font-weight: 600;
   letter-spacing: 0;
 }
 
-.today-detail {
-  width: 100%;
-  min-height: 96rpx;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  margin-top: 26rpx;
-  padding: 22rpx 0 0;
-  border-top: 2rpx solid rgba(247, 247, 242, 0.22);
-  border-radius: 0;
-  background: transparent;
-  color: #f7f7f2;
-  font-size: 25rpx;
+.summary-item:nth-child(2) .summary-value {
+  color: #c8ef3f;
+  font-size: 52rpx;
+  font-weight: 800;
 }
 
-.today-detail text:last-child {
-  color: #c8ef3f;
-  font-size: 38rpx;
+.summary-item:last-child .summary-value text {
+  font-size: 18rpx;
 }
 
 .history-section {
   margin-top: 64rpx;
+  padding: 0 32rpx;
 }
 
 .calendar-heading {

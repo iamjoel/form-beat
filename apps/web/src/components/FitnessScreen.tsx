@@ -104,28 +104,9 @@ export function FitnessScreen({ onNavigate }: FitnessScreenProps) {
 
   return (
     <div className="fitness-screen">
-      <main className="fitness-content" aria-labelledby="fitness-title">
-        <header className="fitness-header">
-          <h1 id="fitness-title">体能</h1>
-        </header>
-
-        <section className="today-summary" aria-labelledby="today-title">
-          <div className="today-summary__heading">
-            <div>
-              <p>今天</p>
-              <h2 id="today-title">
-                {todayRecords.length > 0 ? "练过了" : "还没开始"}
-              </h2>
-            </div>
-            <span aria-hidden="true">{todayRecords.length > 0 ? "✓" : "—"}</span>
-          </div>
+      <main className="fitness-content" aria-label="体能训练记录">
+        <section className="today-summary" aria-label="今日训练汇总">
           <Summary records={todayRecords} />
-          {todayRecords.length > 0 ? (
-            <button type="button" onClick={() => setSelectedDate(todayKey)}>
-              查看今天的视频
-              <span aria-hidden="true">→</span>
-            </button>
-          ) : null}
         </section>
 
         <section className="fitness-history" aria-labelledby="history-title">

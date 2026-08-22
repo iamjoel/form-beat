@@ -60,6 +60,7 @@
     --accent: #c8ef3f;
     --camera: #0e0f0d;
     --camera-text: #f7f7f2;
+    --ink-muted: #aeb0a7;
     --danger: #c94132;
   }
 
@@ -1433,11 +1434,12 @@
     padding-left: max(1rem, env(safe-area-inset-left));
   }
 
-  .fitness-header {
-    min-height: 3.5rem;
+  .fitness-content {
+    padding-top: 0;
+    padding-right: 0;
+    padding-left: 0;
   }
 
-  .fitness-header h1,
   .profile-header h1 {
     font-size: 1.5rem;
     font-weight: 760;
@@ -1445,66 +1447,35 @@
   }
 
   .today-summary {
-    margin-top: 1rem;
-    padding: 1.25rem;
+    margin-top: 0;
+    padding: calc(1.5rem + env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) 1.5rem max(1rem, env(safe-area-inset-left));
     color: var(--camera-text);
     background: var(--ink);
-    border-radius: 1rem;
-  }
-
-  .today-summary__heading {
-    display: flex;
-    align-items: start;
-    justify-content: space-between;
-  }
-
-  .today-summary__heading p {
-    font-size: 0.75rem;
-    font-weight: 650;
-    color: #aeb0a7;
-  }
-
-  .today-summary__heading h2 {
-    margin-top: 0.2rem;
-    font-size: 1.75rem;
-    font-weight: 760;
-    letter-spacing: -0.05em;
-  }
-
-  .today-summary__heading > span {
-    display: grid;
-    width: 2.25rem;
-    height: 2.25rem;
-    place-items: center;
-    font-size: 1rem;
-    font-weight: 800;
-    color: var(--ink);
-    background: var(--accent);
-    border-radius: 50%;
   }
 
   .fitness-summary {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin-top: 1.5rem;
+    margin-top: 0;
   }
 
   .fitness-summary > div + div {
     padding-left: 1rem;
-    border-left: 1px solid rgb(247 247 242 / 22%);
+    border-left: 1px solid var(--line);
   }
 
   .fitness-summary dt {
-    font-size: 0.6875rem;
-    color: #aeb0a7;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
   }
 
   .fitness-summary dd {
-    margin-top: 0.25rem;
+    margin-top: 0.5rem;
     overflow: hidden;
-    font-size: 1.4rem;
+    font-size: 1.625rem;
     font-variant-numeric: tabular-nums;
-    font-weight: 720;
+    font-weight: 760;
     letter-spacing: -0.04em;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1512,33 +1483,55 @@
 
   .fitness-summary small {
     margin-left: 0.2rem;
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0;
   }
 
-  .today-summary > button {
-    display: flex;
-    width: 100%;
-    min-height: 3rem;
-    align-items: center;
-    justify-content: space-between;
-    margin-top: 1.25rem;
-    padding-top: 0.75rem;
-    font-size: 0.8125rem;
-    font-weight: 650;
-    color: var(--camera-text);
-    background: transparent;
-    border-top: 1px solid rgb(247 247 242 / 22%);
+  .today-summary .fitness-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
   }
 
-  .today-summary > button span {
-    font-size: 1.25rem;
+  .today-summary .fitness-summary > div + div {
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .today-summary .fitness-summary > div:nth-child(2) {
+    text-align: center;
+  }
+
+  .today-summary .fitness-summary > div:last-child {
+    text-align: right;
+  }
+
+  .today-summary .fitness-summary dt {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--ink-muted);
+  }
+
+  .today-summary .fitness-summary dd {
+    font-size: 1.75rem;
+    font-weight: 720;
+    color: var(--camera-text);
+  }
+
+  .today-summary .fitness-summary > div:nth-child(2) dd {
+    font-size: 1.75rem;
+    font-weight: 800;
     color: var(--accent);
   }
 
+  .today-summary .fitness-summary > div:last-child small {
+    font-size: 0.625rem;
+  }
+
   .fitness-history {
-    margin-top: 2.25rem;
+    margin-top: 2rem;
+    margin-right: max(1rem, env(safe-area-inset-right));
+    margin-left: max(1rem, env(safe-area-inset-left));
   }
 
   .calendar-heading {
@@ -1661,6 +1654,11 @@
     color: var(--muted);
   }
 
+  .fitness-content > .fitness-status {
+    margin-right: max(1rem, env(safe-area-inset-right));
+    margin-left: max(1rem, env(safe-area-inset-left));
+  }
+
   .fitness-status button,
   .detail-empty button {
     min-height: 2.75rem;
@@ -1735,18 +1733,6 @@
   .detail-summary {
     padding: 1.25rem 0 1.5rem;
     border-bottom: 1px solid var(--line);
-  }
-
-  .detail-summary .fitness-summary {
-    margin-top: 0;
-  }
-
-  .detail-summary .fitness-summary > div + div {
-    border-left-color: var(--line);
-  }
-
-  .detail-summary .fitness-summary dt {
-    color: var(--muted);
   }
 
   .detail-records {
